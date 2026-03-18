@@ -2,14 +2,27 @@
 """End-to-end demo of the KnowHow Knowledge Graph RAG + HyDE pipeline.
 
 Usage:
-    # With files:
+    # With text files:
     python examples/run_pipeline.py --files doc1.txt doc2.md --query "What is X?"
+
+    # With images (uses vision LLM to extract text):
+    python examples/run_pipeline.py --files diagram.png screenshot.jpg --query "What does the diagram show?"
+
+    # With PDFs:
+    python examples/run_pipeline.py --files paper.pdf --query "What are the findings?"
+
+    # With mixed formats:
+    python examples/run_pipeline.py --files notes.md data.csv image.png --query "Summarize everything"
 
     # With built-in sample data:
     python examples/run_pipeline.py --query "What is retrieval augmented generation?"
 
+    # Using different LLM providers (set in .env or environment):
+    LLM_PROVIDER=anthropic API_KEY=sk-ant-... python examples/run_pipeline.py --query "What is RAG?"
+    LLM_PROVIDER=ollama python examples/run_pipeline.py --query "What is RAG?"
+
     # Compare methods:
-    python examples/run_pipeline.py --query "How does RAG work?" --method combined
+    python examples/run_pipeline.py --query "How does RAG work?" --method all --verbose
 """
 
 from __future__ import annotations
@@ -75,7 +88,8 @@ enabling graph-based retrieval and reasoning.
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="KnowHow RAG Pipeline Demo")
-    parser.add_argument("--files", nargs="+", help="Text/markdown files to ingest")
+    parser.add_argument("--files", nargs="+",
+                        help="Files to ingest (txt, md, pdf, docx, csv, html, json, png, jpg, ...)")
     parser.add_argument("--query", "-q", default="What is RAG and how does it work?",
                         help="Question to ask")
     parser.add_argument("--method", "-m", default="combined",
@@ -85,10 +99,15 @@ def main() -> None:
     args = parser.parse_args()
 
     settings = get_settings()
-    if not settings.openai_api_key:
-        print("Error: OPENAI_API_KEY environment variable is required.")
+    if not settings.api_key and settings.llm_provider != "ollama":
+        print(f"Error: API_KEY environment variable is required for provider '{settings.llm_provider}'.")
         print("Copy .env.example to .env and fill in your API key.")
         sys.exit(1)
+
+    if args.verbose:
+        print(f"Provider: {settings.llm_provider}")
+        print(f"Model: {settings.llm_model}")
+        print(f"Embedding: {settings.embedding_model or '(local fallback)'}")
 
     pipeline = KnowHowPipeline(settings)
 

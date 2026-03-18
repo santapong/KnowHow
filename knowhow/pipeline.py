@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from knowhow.config import Settings, get_settings
-from knowhow.documents import Chunk, chunk_text, load_text
+from knowhow.documents import Chunk, chunk_text, load_file
 from knowhow.embeddings import VectorStore
 from knowhow.graph.extract import extract_entities_and_relations
 from knowhow.graph.retrieve import GraphRetriever
@@ -45,7 +45,8 @@ class KnowHowPipeline:
     2. **HyDE**: Generates hypothetical answer documents, embeds them, and uses
        the averaged embedding for more accurate semantic search.
 
-    The `combined` mode merges results from both methods for best coverage.
+    Supports multiple LLM providers (OpenAI, Anthropic, Ollama, any OpenAI-compatible)
+    and multiple input formats (text, images, PDF, DOCX, CSV, HTML, JSON).
     """
 
     def __init__(self, settings: Settings | None = None) -> None:
@@ -67,51 +68,28 @@ class KnowHowPipeline:
         )
 
     def ingest(self, file_paths: list[str], verbose: bool = False) -> None:
-        """Ingest documents: chunk, embed, and build knowledge graph."""
+        """Ingest documents of any supported format.
+
+        Supports: .txt, .md, .pdf, .docx, .csv, .html, .json,
+                  .png, .jpg, .jpeg, .gif, .webp (via vision LLM)
+        """
         all_chunks: list[Chunk] = []
 
         for file_path in file_paths:
             if verbose:
                 print(f"Loading {file_path}...")
-            text = load_text(file_path)
+            text = load_file(file_path, llm=self.llm)
             chunks = chunk_text(
                 text,
                 chunk_size=self.settings.chunk_size,
                 overlap=self.settings.chunk_overlap,
                 source=file_path,
             )
-            # Re-index chunks globally
             for chunk in chunks:
                 chunk.index = len(all_chunks)
                 all_chunks.append(chunk)
 
-        self.chunks = all_chunks
-        if verbose:
-            print(f"Created {len(all_chunks)} chunks from {len(file_paths)} files")
-
-        # Embed all chunks and add to vector store
-        if verbose:
-            print("Generating embeddings...")
-        batch_size = 100
-        for i in range(0, len(all_chunks), batch_size):
-            batch = all_chunks[i : i + batch_size]
-            texts = [c.text for c in batch]
-            embeddings = self.llm.embed(texts)
-            metadatas = [{"chunk_index": c.index, **c.metadata} for c in batch]
-            self.vector_store.add(texts, embeddings, metadatas)
-
-        # Build knowledge graph from each chunk
-        if verbose:
-            print("Extracting entities and relationships...")
-        for idx, chunk in enumerate(all_chunks):
-            if verbose:
-                print(f"  Processing chunk {idx + 1}/{len(all_chunks)}...")
-            result = extract_entities_and_relations(self.llm, chunk.text)
-            self.knowledge_graph.add_extraction(result, chunk)
-
-        if verbose:
-            g = self.knowledge_graph.graph
-            print(f"Knowledge graph: {g.number_of_nodes()} nodes, {g.number_of_edges()} edges")
+        self._ingest_chunks(all_chunks, verbose)
 
     def ingest_text(self, text: str, source: str = "inline", verbose: bool = False) -> None:
         """Ingest raw text directly (convenience method)."""
@@ -123,17 +101,33 @@ class KnowHowPipeline:
         )
         for chunk in chunks:
             chunk.index = len(self.chunks)
-            self.chunks.append(chunk)
 
+        self._ingest_chunks(chunks, verbose)
+
+    def _ingest_chunks(self, chunks: list[Chunk], verbose: bool = False) -> None:
+        """Internal: embed chunks and build knowledge graph."""
         if verbose:
-            print(f"Created {len(chunks)} chunks from text")
+            print(f"Processing {len(chunks)} chunks...")
 
-        texts = [c.text for c in chunks]
-        embeddings = self.llm.embed(texts)
-        metadatas = [{"chunk_index": c.index, **c.metadata} for c in chunks]
-        self.vector_store.add(texts, embeddings, metadatas)
+        self.chunks.extend(chunks)
 
-        for chunk in chunks:
+        # Embed all chunks
+        if verbose:
+            print("Generating embeddings...")
+        batch_size = 100
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i : i + batch_size]
+            texts = [c.text for c in batch]
+            embeddings = self.llm.embed(texts)
+            metadatas = [{"chunk_index": c.index, **c.metadata} for c in batch]
+            self.vector_store.add(texts, embeddings, metadatas)
+
+        # Build knowledge graph
+        if verbose:
+            print("Extracting entities and relationships...")
+        for idx, chunk in enumerate(chunks):
+            if verbose:
+                print(f"  Processing chunk {idx + 1}/{len(chunks)}...")
             result = extract_entities_and_relations(self.llm, chunk.text)
             self.knowledge_graph.add_extraction(result, chunk)
 
@@ -173,7 +167,6 @@ class KnowHowPipeline:
                     seen_texts.add(r.text)
                     merged.append(r)
 
-            # Sort by score descending, take top_k
             merged.sort(key=lambda x: x.score, reverse=True)
             results = merged[:k]
         else:

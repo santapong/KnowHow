@@ -1,7 +1,7 @@
 [project]
 name = "knowhow"
-version = "0.1.0"
-description = "Knowledge Graph RAG with HyDE augmentation"
+version = "0.2.0"
+description = "Knowledge Graph RAG with HyDE augmentation - Universal LLM support"
 requires-python = ">=3.10"
 dependencies = [
     "openai>=1.0",
@@ -12,6 +12,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+anthropic = ["anthropic>=0.30"]
+pdf = ["pymupdf>=1.23"]
+docx = ["python-docx>=1.0"]
+html = ["beautifulsoup4>=4.12"]
+all = [
+    "anthropic>=0.30",
+    "pymupdf>=1.23",
+    "python-docx>=1.0",
+    "beautifulsoup4>=4.12",
+]
 dev = [
     "pytest>=7.0",
     "python-dotenv>=1.0",

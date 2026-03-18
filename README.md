@@ -2,17 +2,35 @@
 
 **Knowledge Graph RAG + HyDE Augmentation Pipeline**
 
-A hybrid retrieval-augmented generation system that combines two complementary augmentation methods:
+A hybrid retrieval-augmented generation system that combines two complementary augmentation methods with **universal LLM support** and **multi-format document ingestion**.
 
+## Features
+
+### Two Augmentation Methods
 1. **Knowledge Graph RAG** — Extracts entities and relationships from documents, builds a NetworkX graph, and traverses it to find structurally relevant context.
 2. **HyDE (Hypothetical Document Embeddings)** — Generates hypothetical answer documents, embeds them, and uses the averaged embedding for more accurate semantic retrieval.
+
+### Universal LLM Support
+- **OpenAI** — GPT-4o, GPT-4o-mini, etc.
+- **Anthropic** — Claude Sonnet, Claude Opus, etc.
+- **Ollama** — Llama, Mistral, Phi, and any local model
+- **Any OpenAI-compatible API** — Together AI, Groq, vLLM, LiteLLM, etc.
+
+### Multi-Format Input
+- **Text/Markdown** (.txt, .md)
+- **Images** (.png, .jpg, .gif, .webp) — via vision LLM
+- **PDF** (.pdf) — via pymupdf or pdfplumber
+- **DOCX** (.docx) — via python-docx
+- **CSV/TSV** (.csv, .tsv)
+- **HTML** (.html, .htm) — via beautifulsoup4
+- **JSON/JSONL** (.json, .jsonl)
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │                  KnowHowPipeline                     │
-│         ingest() → query() → Answer                  │
+│     ingest(any format) → query() → Answer            │
 ├────────────────────┬─────────────────────────────────┤
 │   GraphRetriever   │        HyDERetriever            │
 │  (Augmentation #1) │       (Augmentation #2)         │
@@ -20,34 +38,75 @@ A hybrid retrieval-augmented generation system that combines two complementary a
 │  Entity Extraction    │  FAISS Vector Store           │
 │  Knowledge Graph      │  (shared by both methods)     │
 ├───────────────────────┴──────────────────────────────┤
-│            LLM Client  (OpenAI-compatible)            │
+│  Multi-Format Loaders  (text, image, pdf, docx, ...) │
+├──────────────────────────────────────────────────────┤
+│  Universal LLM Client (OpenAI / Anthropic / Ollama)  │
 └──────────────────────────────────────────────────────┘
 ```
 
 ## Installation
 
 ```bash
+# Core (OpenAI + FAISS)
+pip install -e .
+
+# With Anthropic support
+pip install -e ".[anthropic]"
+
+# With all document formats
+pip install -e ".[all]"
+
+# With dev tools
 pip install -e ".[dev]"
 ```
 
 ## Configuration
 
-Copy `.env.example` to `.env` and set your API key:
+Copy `.env.example` to `.env` and configure your provider:
 
 ```bash
 cp .env.example .env
-# Edit .env with your OPENAI_API_KEY
 ```
+
+### OpenAI (default)
+```env
+LLM_PROVIDER=openai
+API_KEY=sk-...
+```
+
+### Anthropic (Claude)
+```env
+LLM_PROVIDER=anthropic
+API_KEY=sk-ant-...
+```
+
+### Ollama (local)
+```env
+LLM_PROVIDER=ollama
+# No API key needed
+```
+
+### Any OpenAI-compatible API (Together, Groq, vLLM, etc.)
+```env
+LLM_PROVIDER=together
+API_KEY=...
+API_BASE_URL=https://api.together.xyz/v1
+LLM_MODEL=meta-llama/Llama-3-70b-chat-hf
+EMBEDDING_MODEL=togethercomputer/m2-bert-80M-8k-retrieval
+```
+
+### All Settings
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENAI_API_KEY` | — | Required. Your OpenAI API key |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | API endpoint (supports Ollama, vLLM, etc.) |
-| `LLM_MODEL` | `gpt-4o-mini` | Model for generation and extraction |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | Model for embeddings |
+| `LLM_PROVIDER` | `openai` | Provider: openai, anthropic, ollama, or any name |
+| `API_KEY` | — | API key (also reads OPENAI_API_KEY, ANTHROPIC_API_KEY) |
+| `API_BASE_URL` | auto | API endpoint (auto-detected per provider) |
+| `LLM_MODEL` | auto | Chat model (auto-detected per provider) |
+| `EMBEDDING_MODEL` | auto | Embedding model (local fallback if empty) |
 | `CHUNK_SIZE` | `512` | Characters per chunk |
 | `CHUNK_OVERLAP` | `50` | Overlap between chunks |
-| `HYDE_NUM_HYPOTHETICALS` | `3` | Number of hypothetical documents to generate |
+| `HYDE_NUM_HYPOTHETICALS` | `3` | Number of hypothetical documents |
 | `TOP_K` | `5` | Number of results to retrieve |
 
 ## Usage
@@ -55,11 +114,17 @@ cp .env.example .env
 ### CLI Demo
 
 ```bash
-# With sample data
-python examples/run_pipeline.py --query "What is RAG?"
+# Text files
+python examples/run_pipeline.py --files doc.txt notes.md --query "What is X?"
 
-# With your own files
-python examples/run_pipeline.py --files doc1.txt doc2.md --query "How does X work?"
+# Images (extracted via vision LLM)
+python examples/run_pipeline.py --files diagram.png chart.jpg --query "What does it show?"
+
+# PDFs
+python examples/run_pipeline.py --files paper.pdf --query "What are the findings?"
+
+# Mixed formats
+python examples/run_pipeline.py --files notes.md data.csv image.png --query "Summarize"
 
 # Compare all methods
 python examples/run_pipeline.py --query "What is RAG?" --method all --verbose
@@ -69,11 +134,25 @@ python examples/run_pipeline.py --query "What is RAG?" --method all --verbose
 
 ```python
 from knowhow import KnowHowPipeline
+from knowhow.config import Settings
 
+# Auto-configure from environment
 pipeline = KnowHowPipeline()
 
-# Ingest documents
-pipeline.ingest(["docs/paper.txt", "docs/notes.md"])
+# Or explicit configuration
+pipeline = KnowHowPipeline(Settings(
+    llm_provider="anthropic",
+    api_key="sk-ant-...",
+    llm_model="claude-sonnet-4-20250514",
+))
+
+# Ingest any format
+pipeline.ingest([
+    "docs/paper.pdf",
+    "docs/notes.md",
+    "docs/diagram.png",    # Vision LLM extracts content
+    "data/records.csv",
+])
 
 # Or ingest text directly
 pipeline.ingest_text("RAG combines retrieval with generation...")
@@ -105,6 +184,9 @@ pipeline.load("./knowhow_data")
 
 ### Combined Mode (Default)
 Runs both methods, merges and deduplicates results by text content, re-ranks by score, and feeds the top-K chunks as context to the LLM for final answer generation.
+
+### Image Ingestion
+When you ingest an image file, the pipeline uses the LLM's vision capabilities to extract text and describe visual content. The extracted text is then processed through the same chunking, embedding, and knowledge graph pipeline as any other document.
 
 ## Testing
 

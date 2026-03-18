@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from knowhow.llm import LLMClient
 
 
 @dataclass
@@ -17,6 +21,15 @@ class Chunk:
 def load_text(path: str) -> str:
     """Read a plain-text or markdown file."""
     return Path(path).read_text(encoding="utf-8")
+
+
+def load_file(path: str, llm: LLMClient | None = None) -> str:
+    """Load any supported file format and return text.
+
+    Supports: text, markdown, images (via vision LLM), PDF, DOCX, CSV, HTML, JSON.
+    """
+    from knowhow.loaders import load_file as _load
+    return _load(path, llm=llm)
 
 
 def _split_sentences(text: str) -> list[str]:
