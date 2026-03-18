@@ -1,0 +1,36 @@
+[project]
+name = "knowhow"
+version = "0.3.0"
+description = "Knowledge Graph RAG with HyDE augmentation - Universal LLM + MCP support"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0",
+    "faiss-cpu>=1.7",
+    "networkx>=3.0",
+    "tiktoken>=0.5",
+    "numpy>=1.24",
+    "mcp>=1.0",
+]
+
+[project.optional-dependencies]
+anthropic = ["anthropic>=0.30"]
+pdf = ["pymupdf>=1.23"]
+docx = ["python-docx>=1.0"]
+html = ["beautifulsoup4>=4.12"]
+all = [
+    "anthropic>=0.30",
+    "pymupdf>=1.23",
+    "python-docx>=1.0",
+    "beautifulsoup4>=4.12",
+]
+dev = [
+    "pytest>=7.0",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+knowhow-mcp = "knowhow.mcp.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
