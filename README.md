@@ -2,7 +2,7 @@
 
 **Knowledge Graph RAG + HyDE Augmentation Pipeline**
 
-A hybrid retrieval-augmented generation system that combines two complementary augmentation methods with **universal LLM support** and **multi-format document ingestion**.
+A hybrid retrieval-augmented generation system that combines two complementary augmentation methods with **universal LLM support**, **multi-format document ingestion**, and **MCP (Model Context Protocol) server**.
 
 ## Features
 
@@ -29,6 +29,9 @@ A hybrid retrieval-augmented generation system that combines two complementary a
 
 ```
 ┌──────────────────────────────────────────────────────┐
+│              MCP Server (stdio / SSE / HTTP)          │
+│  Tools, Resources, Prompts for any MCP-compatible AI  │
+├──────────────────────────────────────────────────────┤
 │                  KnowHowPipeline                     │
 │     ingest(any format) → query() → Answer            │
 ├────────────────────┬─────────────────────────────────┤
@@ -187,6 +190,106 @@ Runs both methods, merges and deduplicates results by text content, re-ranks by 
 
 ### Image Ingestion
 When you ingest an image file, the pipeline uses the LLM's vision capabilities to extract text and describe visual content. The extracted text is then processed through the same chunking, embedding, and knowledge graph pipeline as any other document.
+
+## MCP Server
+
+KnowHow exposes its full pipeline as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server, making it available as a tool for Claude Desktop, Claude Code, or any MCP-compatible client.
+
+### Running the MCP Server
+
+```bash
+# stdio transport (for Claude Desktop / Claude Code)
+python -m knowhow.mcp
+
+# SSE transport (for web clients)
+python -m knowhow.mcp --sse
+
+# Streamable HTTP transport
+python -m knowhow.mcp --http
+
+# Or via the installed entry point
+knowhow-mcp
+```
+
+### Claude Desktop Configuration
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "knowhow": {
+      "command": "python",
+      "args": ["-m", "knowhow.mcp"],
+      "env": {
+        "LLM_PROVIDER": "openai",
+        "API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+### Claude Code Configuration
+
+Add to your `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "knowhow": {
+      "command": "python",
+      "args": ["-m", "knowhow.mcp"],
+      "env": {
+        "LLM_PROVIDER": "openai",
+        "API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+### MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `knowhow_ingest_text` | Ingest raw text into the knowledge base |
+| `knowhow_ingest_files` | Ingest files (txt, md, pdf, docx, csv, html, json, images) |
+| `knowhow_query` | Query with graph/hyde/combined methods |
+| `knowhow_graph_info` | Get knowledge graph statistics and entity list |
+| `knowhow_get_entity` | Look up an entity and its relationships |
+| `knowhow_save` | Save pipeline state to disk |
+| `knowhow_load` | Load pipeline state from disk |
+
+### MCP Resources
+
+| Resource | Description |
+|----------|-------------|
+| `knowhow://status` | Current pipeline status (JSON) |
+| `knowhow://entities` | All entities in the knowledge graph (JSON) |
+
+### MCP Prompts
+
+| Prompt | Description |
+|--------|-------------|
+| `knowhow_analyze` | Analyze a document and answer questions about it |
+| `knowhow_research` | Research a topic using the knowledge base |
+
+### Programmatic Usage
+
+```python
+from knowhow.mcp import create_server
+from knowhow.config import Settings
+
+# Create with custom settings
+server = create_server(Settings(
+    llm_provider="ollama",
+    llm_model="llama3.2",
+))
+
+# Run
+server.run(transport="stdio")
+```
 
 ## Testing
 
