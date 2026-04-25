@@ -44,6 +44,55 @@ Open http://localhost:3000.
 4. **Authorized redirect URIs**: add Supabase's callback URL (shown in **Auth → Providers → Google** in Supabase Studio). It looks like `https://YOUR-PROJECT.supabase.co/auth/v1/callback`.
 5. Copy the client ID + secret into Supabase **Auth → Providers → Google**.
 
+## Run with Docker
+
+> **Important:** the app uses Supabase's **Auth** and **Storage** APIs, not raw Postgres. A standalone Postgres container won't work as a backend. The Docker setup runs the **app**; the Supabase backend can be hosted, run via the Supabase CLI, or fully self-hosted.
+
+### Path 1 — Hosted Supabase (production-like)
+
+```bash
+cp .env.docker.example .env.docker
+# fill in the three Supabase keys + your site URL
+docker compose up --build
+```
+
+App on http://localhost:3000.
+
+### Path 2 — Local Supabase via CLI (recommended for dev)
+
+In one terminal:
+
+```bash
+npx supabase init   # one-time, generates supabase/config.toml
+npx supabase start  # boots the full Supabase stack in Docker
+npx supabase status # prints local URLs + anon/service keys
+```
+
+The CLI auto-runs anything in `supabase/migrations/` — the schema is already there.
+
+In another terminal:
+
+```bash
+cp .env.docker.example .env.docker
+# In .env.docker, set:
+#   NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:54321
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from supabase status>
+#   SUPABASE_SERVICE_ROLE_KEY=<service_role key from supabase status>
+docker compose up --build
+```
+
+App on http://localhost:3000, Supabase Studio on http://localhost:54323.
+
+### Path 3 — Self-hosted Supabase
+
+Use the upstream compose at https://github.com/supabase/supabase/tree/master/docker — it bundles auth (GoTrue), storage, postgres, studio, kong, realtime. Point this app at its API gateway URL via `.env.docker`.
+
+### Notes
+
+- The `Dockerfile` is multi-stage and uses Next.js's `output: 'standalone'` for a slim final image (~150 MB).
+- `NEXT_PUBLIC_*` env vars are baked into the client bundle **at build time**. If you change them you must rebuild the image (`docker compose up --build`).
+- Server-only env vars (`SUPABASE_SERVICE_ROLE_KEY`) are read at runtime, so changing them only needs `docker compose restart`.
+
 ## Deploy to Vercel
 
 1. Import this repo at https://vercel.com/new.

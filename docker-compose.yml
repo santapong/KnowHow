@@ -1,0 +1,53 @@
+# KnowHow — Docker Compose
+#
+# This file runs the Next.js app. It does NOT bundle Supabase: the app uses
+# Supabase HTTP services (Auth, Storage), so a raw Postgres won't work.
+#
+# Three ways to use this compose:
+#
+#  1. Hosted Supabase (production-like)
+#     - Create a project at https://supabase.com
+#     - Copy .env.docker.example to .env.docker, fill in the Supabase
+#       URL + anon key + service-role key from your Supabase project
+#     - docker compose up --build
+#
+#  2. Local Supabase via the official CLI (recommended for dev)
+#     - In a separate terminal:  npx supabase start
+#       (This runs the full Supabase stack in Docker — auth, storage,
+#        postgres, studio — and prints local URLs + keys.)
+#     - Put those URLs/keys into .env.docker
+#       (NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:54321 etc.)
+#     - docker compose up --build
+#
+#  3. Self-hosted Supabase stack (advanced)
+#     - Use the upstream repo: https://github.com/supabase/supabase/tree/master/docker
+#     - Point this app at its API gateway URL via .env.docker
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Public env vars are baked into the client bundle at build time.
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    image: knowhow:local
+    container_name: knowhow-app
+    env_file:
+      - .env.docker
+    ports:
+      - "${PORT:-3000}:3000"
+    restart: unless-stopped
+    extra_hosts:
+      # Lets the container reach a Supabase CLI running on the host.
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -q -O - http://localhost:3000/ >/dev/null || exit 1"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
