@@ -153,6 +153,15 @@ These were discussed and are *not* settled — when the user revisits, the choic
 
 See PLAN.md "v2 candidates" section. Highlights: AI/RAG chat, annotations, EPUB, PWA offline, Cloudflare R2 migration, paid storage tiers, page-curl bend shader.
 
+## Project skills
+
+Two slash commands live in `.claude/skills/`. The user can type them directly, and Claude will auto-invoke them when the description matches.
+
+- **`/knowhow-status`** — runs lint + typecheck + build + dev-server route smoke test, prints a status table, and renders a verdict ("ready for UAT" or "needs fixes: ..."). Use proactively after a chunk of work, or when the user asks "is this ready?".
+- **`/knowhow-debug`** — symptom→cause map for the common runtime failures (auth, upload, 3D scene, PDF rendering). Use when the user reports something broke during testing. The skill includes the hard rules ("never push to `main`", "never `npm audit fix --force`").
+
+If you make changes that affect either skill (new failure mode discovered, smoke test step added), update the SKILL.md so future sessions inherit the knowledge.
+
 ## Things to not change without asking
 
 - **Don't reintroduce the Python Knowledge-Graph RAG code.** It was deliberately deleted in commit `e9492a0`.
@@ -163,6 +172,11 @@ See PLAN.md "v2 candidates" section. Highlights: AI/RAG chat, annotations, EPUB,
 ## Changelog
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
+
+### 2026-04-26 — Project skills added
+- `.claude/skills/knowhow-status/SKILL.md` — pre-UAT verification (lint + typecheck + build + dev-server route smoke test). Auto-invokes on "is this ready?" type queries.
+- `.claude/skills/knowhow-debug/SKILL.md` — runtime failure triage map. Auto-invokes on "X broke" reports. Encodes the hard rules ("never push to main", etc.).
+- Both are user-invocable via `/knowhow-status` and `/knowhow-debug`.
 
 ### 2026-04-26 — Postgres-only mode discussion
 - **Decided:** keep Supabase as the auth/storage/DB layer for both local dev and prod. Local dev path is `npx supabase start` (real local Postgres + Supabase services in Docker).
