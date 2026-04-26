@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #f4ecd8;
+  --color-leather: #2a1810;
+  --color-gold: #c9a45b;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(
+      ellipse at top,
+      rgba(201, 164, 91, 0.08),
+      transparent 60%
+    ),
+    #14110d;
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+}

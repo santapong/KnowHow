@@ -1,298 +1,152 @@
 # KnowHow
 
-**Knowledge Graph RAG + HyDE Augmentation Pipeline**
+A 3D bookshelf PDF reader. Upload your novels, see them on a wooden shelf in 3D, click a spine to open a book, and flip through pages.
 
-A hybrid retrieval-augmented generation system that combines two complementary augmentation methods with **universal LLM support**, **multi-format document ingestion**, and **MCP (Model Context Protocol) server**.
+> **Status:** v1 in development. See [`PLAN.md`](./PLAN.md) for the roadmap.
 
-## Features
+## Tech stack
 
-### Two Augmentation Methods
-1. **Knowledge Graph RAG** — Extracts entities and relationships from documents, builds a NetworkX graph, and traverses it to find structurally relevant context.
-2. **HyDE (Hypothetical Document Embeddings)** — Generates hypothetical answer documents, embeds them, and uses the averaged embedding for more accurate semantic retrieval.
+- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript 5.7
+- Tailwind CSS 4
+- Supabase — Auth (magic link + Google OAuth) + Postgres + Storage
+- `@react-three/fiber` + `pdfjs-dist` for 3D and PDF rendering
 
-### Universal LLM Support
-- **OpenAI** — GPT-4o, GPT-4o-mini, etc.
-- **Anthropic** — Claude Sonnet, Claude Opus, etc.
-- **Ollama** — Llama, Mistral, Phi, and any local model
-- **Any OpenAI-compatible API** — Together AI, Groq, vLLM, LiteLLM, etc.
-
-### Multi-Format Input
-- **Text/Markdown** (.txt, .md)
-- **Images** (.png, .jpg, .gif, .webp) — via vision LLM
-- **PDF** (.pdf) — via pymupdf or pdfplumber
-- **DOCX** (.docx) — via python-docx
-- **CSV/TSV** (.csv, .tsv)
-- **HTML** (.html, .htm) — via beautifulsoup4
-- **JSON/JSONL** (.json, .jsonl)
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────┐
-│              MCP Server (stdio / SSE / HTTP)          │
-│  Tools, Resources, Prompts for any MCP-compatible AI  │
-├──────────────────────────────────────────────────────┤
-│                  KnowHowPipeline                     │
-│     ingest(any format) → query() → Answer            │
-├────────────────────┬─────────────────────────────────┤
-│   GraphRetriever   │        HyDERetriever            │
-│  (Augmentation #1) │       (Augmentation #2)         │
-├────────────────────┴──┬──────────────────────────────┤
-│  Entity Extraction    │  FAISS Vector Store           │
-│  Knowledge Graph      │  (shared by both methods)     │
-├───────────────────────┴──────────────────────────────┤
-│  Multi-Format Loaders  (text, image, pdf, docx, ...) │
-├──────────────────────────────────────────────────────┤
-│  Universal LLM Client (OpenAI / Anthropic / Ollama)  │
-└──────────────────────────────────────────────────────┘
-```
-
-## Installation
+## Local development
 
 ```bash
-# Core (OpenAI + FAISS)
-pip install -e .
-
-# With Anthropic support
-pip install -e ".[anthropic]"
-
-# With all document formats
-pip install -e ".[all]"
-
-# With dev tools
-pip install -e ".[dev]"
+npm install
+cp .env.example .env.local
+# fill in Supabase + site URL
+npm run dev
 ```
 
-## Configuration
+Open http://localhost:3000.
 
-Copy `.env.example` to `.env` and configure your provider:
+## Setting up Supabase
+
+1. Create a project at https://supabase.com (free tier is fine).
+2. **SQL** → open `supabase/migrations/0001_init.sql` in this repo and run it in the Supabase SQL editor. Idempotent — safe to re-run.
+3. **Project Settings → API** → copy the **Project URL** and **anon public** key into `.env.local`:
+   - `NEXT_PUBLIC_SUPABASE_URL=...`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY=...`
+4. Copy the **service_role** key into `SUPABASE_SERVICE_ROLE_KEY` (never expose this to the client).
+5. **Authentication → URL Configuration**:
+   - **Site URL**: `http://localhost:3000` (dev) or your production URL.
+   - **Redirect URLs**: add `http://localhost:3000/auth/callback`, your Vercel preview URLs, and your production URL.
+6. **Authentication → Providers → Google**: enable, paste in your Google OAuth client ID + secret. (See "Google OAuth" below.)
+7. **Storage**: the migration created `pdfs` (private) and `covers` (public) buckets with the right policies. Verify in **Storage**.
+
+## Google OAuth (5 minutes)
+
+1. https://console.cloud.google.com → Create project.
+2. **APIs & Services → OAuth consent screen** → External → fill required fields.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID → Web application**.
+4. **Authorized redirect URIs**: add Supabase's callback URL (shown in **Auth → Providers → Google** in Supabase Studio). It looks like `https://YOUR-PROJECT.supabase.co/auth/v1/callback`.
+5. Copy the client ID + secret into Supabase **Auth → Providers → Google**.
+
+## Run with Docker
+
+> **Important:** the app uses Supabase's **Auth** and **Storage** APIs, not raw Postgres. A standalone Postgres container won't work as a backend. The Docker setup runs the **app**; the Supabase backend can be hosted, run via the Supabase CLI, or fully self-hosted.
+
+### Path 1 — Hosted Supabase (production-like)
 
 ```bash
-cp .env.example .env
+cp .env.docker.example .env.docker
+# fill in the three Supabase keys + your site URL
+docker compose --env-file .env.docker up --build
 ```
 
-### OpenAI (default)
-```env
-LLM_PROVIDER=openai
-API_KEY=sk-...
-```
+App on http://localhost:3000.
 
-### Anthropic (Claude)
-```env
-LLM_PROVIDER=anthropic
-API_KEY=sk-ant-...
-```
+### Path 2 — Local Supabase via CLI (recommended for dev)
 
-### Ollama (local)
-```env
-LLM_PROVIDER=ollama
-# No API key needed
-```
-
-### Any OpenAI-compatible API (Together, Groq, vLLM, etc.)
-```env
-LLM_PROVIDER=together
-API_KEY=...
-API_BASE_URL=https://api.together.xyz/v1
-LLM_MODEL=meta-llama/Llama-3-70b-chat-hf
-EMBEDDING_MODEL=togethercomputer/m2-bert-80M-8k-retrieval
-```
-
-### All Settings
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LLM_PROVIDER` | `openai` | Provider: openai, anthropic, ollama, or any name |
-| `API_KEY` | — | API key (also reads OPENAI_API_KEY, ANTHROPIC_API_KEY) |
-| `API_BASE_URL` | auto | API endpoint (auto-detected per provider) |
-| `LLM_MODEL` | auto | Chat model (auto-detected per provider) |
-| `EMBEDDING_MODEL` | auto | Embedding model (local fallback if empty) |
-| `CHUNK_SIZE` | `512` | Characters per chunk |
-| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
-| `HYDE_NUM_HYPOTHETICALS` | `3` | Number of hypothetical documents |
-| `TOP_K` | `5` | Number of results to retrieve |
-
-## Usage
-
-### CLI Demo
+In one terminal:
 
 ```bash
-# Text files
-python examples/run_pipeline.py --files doc.txt notes.md --query "What is X?"
-
-# Images (extracted via vision LLM)
-python examples/run_pipeline.py --files diagram.png chart.jpg --query "What does it show?"
-
-# PDFs
-python examples/run_pipeline.py --files paper.pdf --query "What are the findings?"
-
-# Mixed formats
-python examples/run_pipeline.py --files notes.md data.csv image.png --query "Summarize"
-
-# Compare all methods
-python examples/run_pipeline.py --query "What is RAG?" --method all --verbose
+npx supabase init   # one-time, generates supabase/config.toml
+npx supabase start  # boots the full Supabase stack in Docker
+npx supabase status # prints local URLs + anon/service keys
 ```
 
-### Python API
+The CLI auto-runs anything in `supabase/migrations/` — the schema is already there.
 
-```python
-from knowhow import KnowHowPipeline
-from knowhow.config import Settings
-
-# Auto-configure from environment
-pipeline = KnowHowPipeline()
-
-# Or explicit configuration
-pipeline = KnowHowPipeline(Settings(
-    llm_provider="anthropic",
-    api_key="sk-ant-...",
-    llm_model="claude-sonnet-4-20250514",
-))
-
-# Ingest any format
-pipeline.ingest([
-    "docs/paper.pdf",
-    "docs/notes.md",
-    "docs/diagram.png",    # Vision LLM extracts content
-    "data/records.csv",
-])
-
-# Or ingest text directly
-pipeline.ingest_text("RAG combines retrieval with generation...")
-
-# Query with different methods
-answer = pipeline.query("What is RAG?", method="combined")
-print(answer.text)
-
-# Available methods: "graph", "hyde", "combined"
-graph_answer = pipeline.query("What is RAG?", method="graph")
-hyde_answer = pipeline.query("What is RAG?", method="hyde")
-
-# Save/load state
-pipeline.save("./knowhow_data")
-pipeline.load("./knowhow_data")
-```
-
-## How It Works
-
-### Knowledge Graph RAG (Method 1)
-1. **Ingest**: For each text chunk, an LLM extracts entities (PERSON, ORG, CONCEPT, etc.) and relationships
-2. **Build**: Entities become graph nodes, relationships become edges in a NetworkX directed graph
-3. **Retrieve**: Given a query, the LLM identifies mentioned entities, the graph is traversed (depth=2) to find related chunks, and results are ranked by embedding similarity
-
-### HyDE (Method 2)
-1. **Generate**: Given a query, the LLM generates N hypothetical answer passages (default 3)
-2. **Embed**: Each hypothetical is embedded, and the vectors are averaged into a centroid
-3. **Search**: The centroid embedding searches the FAISS vector store — this works because hypothetical answers live in the same semantic space as real answers
-
-### Combined Mode (Default)
-Runs both methods, merges and deduplicates results by text content, re-ranks by score, and feeds the top-K chunks as context to the LLM for final answer generation.
-
-### Image Ingestion
-When you ingest an image file, the pipeline uses the LLM's vision capabilities to extract text and describe visual content. The extracted text is then processed through the same chunking, embedding, and knowledge graph pipeline as any other document.
-
-## MCP Server
-
-KnowHow exposes its full pipeline as an [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server, making it available as a tool for Claude Desktop, Claude Code, or any MCP-compatible client.
-
-### Running the MCP Server
+In another terminal:
 
 ```bash
-# stdio transport (for Claude Desktop / Claude Code)
-python -m knowhow.mcp
-
-# SSE transport (for web clients)
-python -m knowhow.mcp --sse
-
-# Streamable HTTP transport
-python -m knowhow.mcp --http
-
-# Or via the installed entry point
-knowhow-mcp
+cp .env.docker.example .env.docker
+# In .env.docker, set:
+#   NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:54321
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from supabase status>
+#   SUPABASE_SERVICE_ROLE_KEY=<service_role key from supabase status>
+docker compose --env-file .env.docker up --build
 ```
 
-### Claude Desktop Configuration
+App on http://localhost:3000, Supabase Studio on http://localhost:54323.
 
-Add to your `claude_desktop_config.json`:
+### Path 3 — Self-hosted Supabase
 
-```json
-{
-  "mcpServers": {
-    "knowhow": {
-      "command": "python",
-      "args": ["-m", "knowhow.mcp"],
-      "env": {
-        "LLM_PROVIDER": "openai",
-        "API_KEY": "sk-..."
-      }
-    }
-  }
-}
+Use the upstream compose at https://github.com/supabase/supabase/tree/master/docker — it bundles auth (GoTrue), storage, postgres, studio, kong, realtime. Point this app at its API gateway URL via `.env.docker`.
+
+### Notes
+
+- The `Dockerfile` is multi-stage and uses Next.js's `output: 'standalone'` for a slim final image (~150 MB).
+- `NEXT_PUBLIC_*` env vars are baked into the client bundle **at build time**. If you change them you must rebuild the image (`docker compose --env-file .env.docker up --build`).
+- Server-only env vars (`SUPABASE_SERVICE_ROLE_KEY`) are read at runtime, so changing them only needs `docker compose restart`.
+
+## Deploy to Vercel
+
+1. Import this repo at https://vercel.com/new.
+2. Framework: **Next.js** (auto-detected).
+3. **Environment variables** — add all four from `.env.example`:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `NEXT_PUBLIC_SITE_URL` — set to your Vercel preview URL (e.g. `https://knowhow-xxx.vercel.app`) for previews; change to your production URL on the production environment.
+4. Deploy.
+5. After the first deploy, **add the Vercel URL to Supabase Auth → URL Configuration → Redirect URLs**. Otherwise OAuth callbacks will fail.
+
+## Scripts
+
+| Script | What it does |
+|---|---|
+| `npm run dev` | Next dev server, hot reload |
+| `npm run build` | Production build (Turbopack) |
+| `npm start` | Run the production server locally |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript only, no emit |
+
+## Folder layout
+
+```
+src/
+├── app/
+│   ├── (auth)/login/         magic link + Google
+│   ├── (app)/shelf/          3D shelf + book reader
+│   ├── (app)/upload/         drag-drop PDF upload
+│   ├── (app)/community/      public shelves
+│   ├── (app)/settings/       profile + delete account
+│   ├── auth/callback/        Supabase code-exchange
+│   ├── auth/sign-out/        POST handler
+│   └── page.tsx              cinematic landing
+├── actions/                  Server Actions (typed mutations)
+├── components/               shared UI
+├── scenes/                   R3F scenes (landing, shelf, reader)
+├── lib/
+│   ├── supabase/             server, client, proxy helpers
+│   ├── pdf/                  pdfjs worker + page-texture cache
+│   ├── auth/                 getOptionalUser / getUserOrRedirect
+│   └── books.ts              data accessors
+├── proxy.ts                  Next 16 proxy (Supabase session refresh)
+└── ...
+supabase/migrations/0001_init.sql
+PLAN.md
 ```
 
-### Claude Code Configuration
+## Known limitations (v1)
 
-Add to your `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "knowhow": {
-      "command": "python",
-      "args": ["-m", "knowhow.mcp"],
-      "env": {
-        "LLM_PROVIDER": "openai",
-        "API_KEY": "sk-..."
-      }
-    }
-  }
-}
-```
-
-### MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `knowhow_ingest_text` | Ingest raw text into the knowledge base |
-| `knowhow_ingest_files` | Ingest files (txt, md, pdf, docx, csv, html, json, images) |
-| `knowhow_query` | Query with graph/hyde/combined methods |
-| `knowhow_graph_info` | Get knowledge graph statistics and entity list |
-| `knowhow_get_entity` | Look up an entity and its relationships |
-| `knowhow_save` | Save pipeline state to disk |
-| `knowhow_load` | Load pipeline state from disk |
-
-### MCP Resources
-
-| Resource | Description |
-|----------|-------------|
-| `knowhow://status` | Current pipeline status (JSON) |
-| `knowhow://entities` | All entities in the knowledge graph (JSON) |
-
-### MCP Prompts
-
-| Prompt | Description |
-|--------|-------------|
-| `knowhow_analyze` | Analyze a document and answer questions about it |
-| `knowhow_research` | Research a topic using the knowledge base |
-
-### Programmatic Usage
-
-```python
-from knowhow.mcp import create_server
-from knowhow.config import Settings
-
-# Create with custom settings
-server = create_server(Settings(
-    llm_provider="ollama",
-    llm_model="llama3.2",
-))
-
-# Run
-server.run(transport="stdio")
-```
-
-## Testing
-
-```bash
-pytest tests/ -v
-```
+- **No annotations / bookmarks / highlights.** v2.
+- **No EPUB.** PDF only.
+- **No AI / RAG / chat with novel.** Out of scope.
+- **3D book reader uses simple page-spread planes**, not a bend shader. Looks good but doesn't curve. Bend shader is a v1.5 polish item.
+- **Mobile**: rendering works but the 3D shelf is desktop-first. Use the **Grid view** link on `/shelf` for a fast 2D fallback.
+- **Free Supabase** caps storage at 1 GB; large libraries will need a paid tier or a migration to Cloudflare R2.

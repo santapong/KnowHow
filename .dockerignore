@@ -1,0 +1,16 @@
+.git
+.github
+.vercel
+node_modules
+.next
+out
+build
+coverage
+.env
+.env.*
+!.env.example
+!.env.docker.example
+*.log
+.DS_Store
+README.md
+PLAN.md
