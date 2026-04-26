@@ -1,6 +1,8 @@
 # KnowHow — 3D Bookshelf PDF Reader (v1) — Deep Plan
 
 > v1 has **zero AI / LLM** integration. Pure 3D bookshelf + PDF reader + auth + uploads.
+>
+> **When a phase ships or a major plan item shifts, log it in the [Changelog](#changelog) at the bottom of this file.** Decisions and runtime state live in [`CLAUDE.md`](./CLAUDE.md); this file owns the roadmap.
 
 ## 1. Goal & Non-goals
 
@@ -358,3 +360,27 @@ NEXT_PUBLIC_SITE_URL=
 ```
 
 `NEXT_PUBLIC_SITE_URL` is needed for OAuth redirects. Set to your Vercel preview URL during dev and your production URL on prod.
+
+## Changelog
+
+Reverse-chronological. Append a one-liner per phase shipped or per significant plan change. Architecture decisions and runtime state go in [`CLAUDE.md`](./CLAUDE.md).
+
+### 2026-04-26
+- ✅ Phase 0 — Next.js 16 scaffold + Tailwind 4 + landing placeholder; deployable to Vercel.
+- ✅ Phase 1 — Supabase wiring (`@supabase/ssr`), `0001_init.sql` migration with RLS + storage policies + signup trigger.
+- ✅ Phase 2 — Auth UI (magic link + Google), `/auth/callback`, `/auth/sign-out`, `Nav`.
+- ✅ Phase 3 — Upload with browser `pdfjs-dist` parsing, signed-URL direct-to-storage, DMCA checkbox.
+- ✅ Phase 4 — 2D PDF reader + debounced `reading_state` save.
+- ✅ Phase 5 — 3D bookshelf scene + grid fallback for `/shelf?view=grid`.
+- ⚠️  Phase 6 — 3D book reader **shipped with flat page-spread planes**; bend-shader page-curl deferred to v1.5.
+- ✅ Phase 7 — Public sharing toggle + `/community` + book deletion.
+- ✅ Phase 8 — Cinematic 3D landing + auto-redirect for signed-in users.
+- ✅ Phase 9 — Settings, account deletion (cascade), error boundaries, noscript fallback, README walkthrough.
+- ✅ Bonus — `Dockerfile` + `docker-compose.yml` + `.env.docker.example`. Three documented Supabase paths: hosted, local CLI, self-hosted.
+- ➕ `CLAUDE.md` added so Claude Code sessions inherit project context automatically.
+- 📌 **Decision logged**: stay on Supabase for both dev (`npx supabase start`) and prod. Postgres-only mode rewrite (~2–3 days) deferred to v2 unless vendor independence becomes a hard requirement.
+
+### 2026-04-25
+- 🗑 Deleted prior Knowledge-Graph RAG / HyDE Python project (commit `e9492a0`).
+- 📝 Created this PLAN.md with full deep plan, phases, data model, risks.
+- 📌 **Decision logged**: v1 = pure 3D bookshelf PDF reader, no AI/LLM/RAG.

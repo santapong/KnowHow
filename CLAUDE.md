@@ -1,6 +1,8 @@
 # CLAUDE.md
 
 > Project context for Claude Code sessions. Keep updated when architecture or status changes meaningfully. Detailed roadmap lives in [`PLAN.md`](./PLAN.md).
+>
+> **When you make a meaningful change, append a one-line entry to the [Changelog](#changelog) at the bottom of this file.** Mark architecture decisions, deferred work, and phase completions. Don't log routine commits.
 
 ## What this is
 
@@ -157,3 +159,47 @@ See PLAN.md "v2 candidates" section. Highlights: AI/RAG chat, annotations, EPUB,
 - **Don't push to `main`.** Always work on `claude/pdf-book-upload-animation-a4T5r` (or a new branch).
 - **Don't `npm audit fix --force`.** It downgrades Next or breaks deps. Outstanding moderate findings are in transitive PostCSS inside Next's build tooling — not exploitable.
 - **Don't add the React Compiler explicitly.** Next 16 ships it; lint rules `react-hooks/refs`, `react-hooks/set-state-in-effect`, `react-hooks/preserve-manual-memoization` already catch the patterns it cares about.
+
+## Changelog
+
+Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
+
+### 2026-04-26 — Postgres-only mode discussion
+- **Decided:** keep Supabase as the auth/storage/DB layer for both local dev and prod. Local dev path is `npx supabase start` (real local Postgres + Supabase services in Docker).
+- **Rejected for now:** rewriting to NextAuth + Drizzle + S3 abstraction (~2–3 days of work, loses Studio + dashboard OAuth + managed magic-link emails). Logged in PLAN.md as a v2 candidate if vendor independence becomes a hard requirement.
+- Free-tier limits documented: 500 MB DB / 1 GB storage / 5 GB bandwidth — storage is the cap that bites first; R2 migration is the planned escape hatch.
+
+### 2026-04-26 — CLAUDE.md added for session continuity
+- Captures current state, architecture, conventions, open decisions, and "don't change without asking" guardrails.
+- Added this Changelog section so future sessions can append entries without fighting the file.
+
+### 2026-04-26 — Docker support shipped
+- Added `Dockerfile` (multi-stage, Next.js standalone output, non-root, ~150 MB image).
+- Added `docker-compose.yml` with `host.docker.internal` extra-host so the container can reach a Supabase CLI running on the host.
+- Added `.env.docker.example` documenting both hosted-Supabase and local-CLI configs.
+- Real `docker build` not run (no daemon in dev sandbox); standalone build verified via `npm run build`.
+
+### 2026-04-26 — Phases 1–9 shipped to `claude/pdf-book-upload-animation-a4T5r`
+- Phase 1: Supabase wiring (`@supabase/ssr`, server/client/proxy helpers, `0001_init.sql` migration with RLS + storage policies + signup trigger).
+- Phase 2: Auth UI (magic link + Google), `/auth/callback`, `/auth/sign-out`, `Nav`.
+- Phase 3: Upload flow (drag-drop, browser-side `pdfjs-dist` parsing, signed-URL direct-to-storage upload, DMCA checkbox).
+- Phase 4: 2D PDF reader, debounced `reading_state` save.
+- Phase 5: 3D bookshelf scene with `@react-three/fiber`, hover slide-out, click-to-open, grid fallback.
+- Phase 6: 3D book reader with opening animation and ±2 lazy texture window. **Deferred:** page-curl bend shader — flat page-spread planes for v1.
+- Phase 7: Public sharing toggle, `/community`, book deletion.
+- Phase 8: Cinematic 3D landing with auto-redirect for signed-in users.
+- Phase 9: `/settings`, account deletion (cascades storage + auth user via service-role), error/loading/not-found, noscript fallback, README walkthrough.
+- All phases verified locally: `npm run lint`, `npm run typecheck`, `npm run build` — clean.
+- **Not yet verified live** — needs user's Supabase project + Vercel deploy.
+
+### 2026-04-26 — Stack version bumps during scaffold
+- Next 15.1.6 → 16.x (security CVE on 15.1.6).
+- Tailwind 4.0.0 → 4.2.x (Turbopack compat with Next 16).
+- ESLint 10 → 9 (eslint-plugin-react not yet ESLint-10 compatible).
+- `middleware.ts` renamed to `proxy.ts` per Next 16 convention.
+
+### 2026-04-25 — Project pivot: Knowledge-Graph RAG → KnowHow
+- **Decided:** delete the prior Knowledge-Graph RAG / HyDE Python project (commit `e9492a0`) and rebuild as a 3D bookshelf PDF reader.
+- **Decided:** v1 has zero AI / LLM / RAG features. AI is a v2 candidate.
+- **Decided:** Next.js + Supabase + Vercel as the stack; `@react-three/fiber` for 3D; `pdfjs-dist` for PDFs.
+- Created PLAN.md and Phase 0 scaffold (Next.js + Tailwind landing placeholder).
