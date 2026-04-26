@@ -4,10 +4,26 @@ import { env, supabaseConfigured } from "@/lib/env";
 
 const PROTECTED_PREFIXES = ["/shelf", "/upload", "/settings"];
 
+function isProtectedPath(path: string) {
+  return PROTECTED_PREFIXES.some((p) => path.startsWith(p));
+}
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const path = request.nextUrl.pathname;
 
-  if (!supabaseConfigured) return response;
+  // No Supabase env vars: still gate protected routes at the edge so users
+  // see /login (with its "Supabase not configured" notice) instead of a
+  // server-component redirect that falls back to a 1s meta-refresh.
+  if (!supabaseConfigured) {
+    if (isProtectedPath(path)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("next", path);
+      return NextResponse.redirect(url);
+    }
+    return response;
+  }
 
   const supabase = createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
     cookies: {
@@ -30,10 +46,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
-  const isProtected = PROTECTED_PREFIXES.some((p) => path.startsWith(p));
-
-  if (isProtected && !user) {
+  if (isProtectedPath(path) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", path);
