@@ -3,13 +3,22 @@
 # This file runs the Next.js app. It does NOT bundle Supabase: the app uses
 # Supabase HTTP services (Auth, Storage), so a raw Postgres won't work.
 #
+# IMPORTANT — pass --env-file when invoking compose:
+#
+#     docker compose --env-file .env.docker up --build
+#
+# The NEXT_PUBLIC_* variables are baked into the client bundle at BUILD time
+# (build args), so compose has to substitute ${VAR} from .env.docker into
+# the build context. The default `.env` lookup won't see .env.docker; the
+# explicit --env-file flag is required.
+#
 # Three ways to use this compose:
 #
 #  1. Hosted Supabase (production-like)
 #     - Create a project at https://supabase.com
-#     - Copy .env.docker.example to .env.docker, fill in the Supabase
+#     - Copy .env.docker.example to .env.docker and fill in the Supabase
 #       URL + anon key + service-role key from your Supabase project
-#     - docker compose up --build
+#     - docker compose --env-file .env.docker up --build
 #
 #  2. Local Supabase via the official CLI (recommended for dev)
 #     - In a separate terminal:  npx supabase start
@@ -17,7 +26,7 @@
 #        postgres, studio — and prints local URLs + keys.)
 #     - Put those URLs/keys into .env.docker
 #       (NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:54321 etc.)
-#     - docker compose up --build
+#     - docker compose --env-file .env.docker up --build
 #
 #  3. Self-hosted Supabase stack (advanced)
 #     - Use the upstream repo: https://github.com/supabase/supabase/tree/master/docker

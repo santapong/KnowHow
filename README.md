@@ -53,7 +53,7 @@ Open http://localhost:3000.
 ```bash
 cp .env.docker.example .env.docker
 # fill in the three Supabase keys + your site URL
-docker compose up --build
+docker compose --env-file .env.docker up --build
 ```
 
 App on http://localhost:3000.
@@ -78,7 +78,7 @@ cp .env.docker.example .env.docker
 #   NEXT_PUBLIC_SUPABASE_URL=http://host.docker.internal:54321
 #   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key from supabase status>
 #   SUPABASE_SERVICE_ROLE_KEY=<service_role key from supabase status>
-docker compose up --build
+docker compose --env-file .env.docker up --build
 ```
 
 App on http://localhost:3000, Supabase Studio on http://localhost:54323.
@@ -90,7 +90,7 @@ Use the upstream compose at https://github.com/supabase/supabase/tree/master/doc
 ### Notes
 
 - The `Dockerfile` is multi-stage and uses Next.js's `output: 'standalone'` for a slim final image (~150 MB).
-- `NEXT_PUBLIC_*` env vars are baked into the client bundle **at build time**. If you change them you must rebuild the image (`docker compose up --build`).
+- `NEXT_PUBLIC_*` env vars are baked into the client bundle **at build time**. If you change them you must rebuild the image (`docker compose --env-file .env.docker up --build`).
 - Server-only env vars (`SUPABASE_SERVICE_ROLE_KEY`) are read at runtime, so changing them only needs `docker compose restart`.
 
 ## Deploy to Vercel
