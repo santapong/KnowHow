@@ -173,6 +173,12 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-05-02 — Wireframe storyboard ported to `/wireframes`
+- Added `src/app/wireframes/` route that recreates the Claude Design wireframe handoff (7 screens × 2 directions = 14 frames + readme, plus 5-palette theme tweaks).
+- Files: `page.tsx` (next/font/google for Architects Daughter / Caveat / IBM Plex Mono), `WireframesView.tsx` (canvas + tweaks panel), `components.tsx` (Box, Hand, Display, Mono, Squiggle, Spine, Cover, Note, Pill, Btn, Frame, AppBar primitives), `screens.tsx` (Landing/Login/Shelf/Upload/Reader/Community/Settings safe+bold), `wireframes.css` (theme tokens scoped via `data-theme` on artboard wrappers; CSS vars cascade into `.wf-root`).
+- Storyboard is self-contained — no impact on existing app routes. Use it as the design reference when picking safe-vs-bold directions per screen for hi-fi work.
+- Verified locally: lint / typecheck / build clean; `/wireframes` is statically generated.
+
 ### 2026-04-26 — Project skills added
 - `.claude/skills/knowhow-status/SKILL.md` — pre-UAT verification (lint + typecheck + build + dev-server route smoke test). Auto-invokes on "is this ready?" type queries.
 - `.claude/skills/knowhow-debug/SKILL.md` — runtime failure triage map. Auto-invokes on "X broke" reports. Encodes the hard rules ("never push to main", etc.).

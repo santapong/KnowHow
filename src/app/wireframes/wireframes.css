@@ -1,0 +1,163 @@
+/* Wireframes route — theme tokens + canvas chrome.
+   Tokens are scoped to .wf-root frames; switching the data-theme attribute
+   on each frame swaps palettes without touching component styles. */
+
+.wf-canvas-bg {
+  background: #f0eee9;
+  min-height: 100vh;
+  font-family: var(--wf-font-hand), -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  color: #1a1814;
+}
+
+/* Themes set CSS variables on the artboard wrapper; .wf-root inherits them. */
+.wf-artboard-frame,
+.wf-root {
+  --wf-paper: #fbf8f1;
+  --wf-ink: #1a1814;
+  --wf-ink-2: #5a544a;
+  --wf-ink-3: #b8b0a3;
+  --wf-bar: #f1ece1;
+  --wf-fill: #ece5d4;
+  --wf-accent: #c96442;
+}
+[data-theme="leather"] {
+  --wf-paper: #f4ecd8;
+  --wf-ink: #2a1810;
+  --wf-ink-2: #6b5847;
+  --wf-ink-3: #c2b69e;
+  --wf-bar: #ebdfc4;
+  --wf-fill: #ddd0b4;
+  --wf-accent: #c9a45b;
+}
+[data-theme="midnight"] {
+  --wf-paper: #161821;
+  --wf-ink: #e8e3d6;
+  --wf-ink-2: #9b9684;
+  --wf-ink-3: #3a3d4a;
+  --wf-bar: #1d1f29;
+  --wf-fill: #232631;
+  --wf-accent: #d6a85b;
+}
+[data-theme="library"] {
+  --wf-paper: #f3f1e7;
+  --wf-ink: #1d2a23;
+  --wf-ink-2: #4f5b50;
+  --wf-ink-3: #b9bda7;
+  --wf-bar: #e1e3cf;
+  --wf-fill: #d3d6bd;
+  --wf-accent: #8a4d2a;
+}
+[data-theme="marble"] {
+  --wf-paper: #f7f5f1;
+  --wf-ink: #2c2823;
+  --wf-ink-2: #7a7167;
+  --wf-ink-3: #cac2b6;
+  --wf-bar: #ebe8e1;
+  --wf-fill: #ded8cc;
+  --wf-accent: #4a5a8a;
+}
+
+.wf-section {
+  padding: 80px 48px 24px;
+}
+.wf-section-head {
+  max-width: 960px;
+  margin: 0 auto 32px;
+}
+.wf-section-title {
+  font-family: var(--wf-font-display, "Caveat"), cursive;
+  font-size: 36px;
+  line-height: 1;
+  margin: 0 0 6px;
+}
+.wf-section-sub {
+  font-family: var(--wf-font-hand, "Architects Daughter"), cursive;
+  font-size: 14px;
+  color: #5a544a;
+  margin: 0;
+}
+.wf-artboards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: center;
+}
+.wf-artboard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.wf-artboard-label {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: #5a544a;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.wf-artboard-frame {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 1px 0 rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.wf-tweaks {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 240px;
+  background: #fff;
+  border: 1px solid #d8d2c4;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-family: var(--wf-font-hand), -apple-system, BlinkMacSystemFont,
+    "Segoe UI", system-ui, sans-serif;
+  z-index: 50;
+}
+.wf-tweaks-head {
+  padding: 12px 14px;
+  border-bottom: 1px solid #ece8de;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5a544a;
+}
+.wf-tweaks-body {
+  padding: 14px;
+}
+.wf-tweaks-section-title {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a8275;
+  margin: 0 0 8px;
+}
+.wf-tweaks-radio-label {
+  font-size: 12px;
+  color: #5a544a;
+  margin-bottom: 6px;
+}
+.wf-tweaks-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.wf-tweaks-option {
+  appearance: none;
+  border: 1px solid #d8d2c4;
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: #fbf8f1;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  color: #1a1814;
+}
+.wf-tweaks-option[aria-pressed="true"] {
+  background: #1a1814;
+  border-color: #1a1814;
+  color: #fbf8f1;
+}
