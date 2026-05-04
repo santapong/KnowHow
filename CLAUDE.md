@@ -173,6 +173,13 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-05-04 — Wireframes pixel-pass against re-fetched design bundle
+- Re-fetched the `KnowHow Wireframes.html` handoff bundle from `claude.ai/design` and diffed against the existing `/wireframes` port. The port from 2026-05-02 was already a faithful reproduction; only minor pixel discrepancies remained.
+- `screens.tsx` `UploadBold`: restored the design's `bottom: 0` + `gap: 80` for the three-frame transformation row (was `bottom: 120` + `gap: 60`, which compressed the layout off-design).
+- `screens.tsx` `ShelfBold` + `ReaderBold`: removed redundant wrapper `<span>` around `<Mono>`s with `marginLeft: 16`; pass the style directly to `<Mono>` to match the design's component composition.
+- Storyboard remains self-contained — no app-route changes. Still awaiting user direction on which safe-vs-bold variants to carry into hi-fi.
+- Verified locally: lint / typecheck / build clean; `/wireframes` is statically generated.
+
 ### 2026-05-02 — Wireframe storyboard ported to `/wireframes`
 - Added `src/app/wireframes/` route that recreates the Claude Design wireframe handoff (7 screens × 2 directions = 14 frames + readme, plus 5-palette theme tweaks).
 - Files: `page.tsx` (next/font/google for Architects Daughter / Caveat / IBM Plex Mono), `WireframesView.tsx` (canvas + tweaks panel), `components.tsx` (Box, Hand, Display, Mono, Squiggle, Spine, Cover, Note, Pill, Btn, Frame, AppBar primitives), `screens.tsx` (Landing/Login/Shelf/Upload/Reader/Community/Settings safe+bold), `wireframes.css` (theme tokens scoped via `data-theme` on artboard wrappers; CSS vars cascade into `.wf-root`).
