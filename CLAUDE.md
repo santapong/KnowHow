@@ -173,6 +173,15 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-05-04 — Hi-fi pass on `/` landing — LandingBold direction
+- **Decided:** carry the wireframes into the real app one screen at a time, hi-fi (proper type, real components, no sketch chrome). Starting with the landing as a sample so the user can react before we touch the other six screens.
+- **Direction picked:** **Bold** for landing — full-bleed book-as-hero, asymmetric type bottom-left, body+CTA bottom-right, corner brand + corner sign-in (no shared `<Nav>`). Both chat transcripts called the book-opening the hero moment.
+- `src/app/page.tsx`: rewritten. Drops the centered hero + shared `<Nav>`; adds corner brand top-left, "Sign in" top-right, eyebrow + huge serif "Read it like a book." headline bottom-left, body + "Begin →" CTA + "browse community" link bottom-right. R3F `LandingScene` stays as the full-bleed background. Mobile fallback stacks the corner blocks at the bottom.
+- Typography: `--font-serif` (Georgia/Cambria from `globals.css`) for the display headline, Tailwind `font-mono` for eyebrow text. No new font dependencies — kept the change tight.
+- Vignette: radial + bottom gradient over the canvas so text reads against the warm-leather backdrop.
+- Verified locally: lint / typecheck / build clean; `/` is statically generated.
+- **Open:** which direction (safe / bold) to apply to login / shelf / upload / reader / community / settings — awaiting user call after they look at this landing.
+
 ### 2026-05-04 — Wireframes pixel-pass against re-fetched design bundle
 - Re-fetched the `KnowHow Wireframes.html` handoff bundle from `claude.ai/design` and diffed against the existing `/wireframes` port. The port from 2026-05-02 was already a faithful reproduction; only minor pixel discrepancies remained.
 - `screens.tsx` `UploadBold`: restored the design's `bottom: 0` + `gap: 80` for the three-frame transformation row (was `bottom: 120` + `gap: 60`, which compressed the layout off-design).
