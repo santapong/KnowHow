@@ -1,67 +1,108 @@
 import Link from "next/link";
 import { getOptionalUser } from "@/lib/auth/getUser";
 
-export async function Nav() {
+type NavProps = {
+  /** Active route key — adds an accent underline to the matching link. */
+  active?: "shelf" | "upload" | "community" | "settings";
+};
+
+export async function Nav({ active }: NavProps = {}) {
   const user = await getOptionalUser();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[color:var(--color-ink)]/10 bg-[#14110d]/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+    <header className="sticky top-0 z-30 border-b border-[color:var(--color-ink)]/10 bg-[#14110d]/85 backdrop-blur">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-8 px-4 md:px-6">
         <Link
           href="/"
-          className="text-lg font-semibold tracking-tight text-[color:var(--color-ink)]"
+          className="flex items-center gap-2.5 text-[color:var(--color-ink)]"
+          aria-label="KnowHow home"
         >
-          KnowHow
+          <span
+            aria-hidden
+            className="block h-6 w-4 rounded-[2px] border border-[color:var(--color-ink)]/55 bg-gradient-to-b from-[color:var(--color-gold)]/30 to-[color:var(--color-leather)]"
+          />
+          <span className="font-serif text-lg font-semibold tracking-tight">
+            KnowHow
+          </span>
         </Link>
 
-        <nav className="flex items-center gap-4 text-sm">
-          <Link
-            href="/community"
-            className="text-[color:var(--color-ink)]/70 hover:text-[color:var(--color-ink)]"
-          >
-            Community
-          </Link>
-
+        <div className="ml-auto flex items-center gap-1 text-sm">
           {user ? (
             <>
-              <Link
-                href="/shelf"
-                className="text-[color:var(--color-ink)]/70 hover:text-[color:var(--color-ink)]"
-              >
+              <NavLink href="/shelf" active={active === "shelf"}>
                 Shelf
-              </Link>
-              <Link
-                href="/upload"
-                className="rounded-md border border-[color:var(--color-gold)]/40 px-3 py-1.5 text-[color:var(--color-gold)] hover:bg-[color:var(--color-gold)]/10"
-              >
+              </NavLink>
+              <NavLink href="/upload" active={active === "upload"}>
                 Upload
-              </Link>
-              <Link
-                href="/settings"
-                className="text-[color:var(--color-ink)]/70 hover:text-[color:var(--color-ink)]"
-                aria-label="Settings"
+              </NavLink>
+              <NavLink href="/community" active={active === "community"}>
+                Community
+              </NavLink>
+              <NavLink href="/settings" active={active === "settings"}>
+                Settings
+              </NavLink>
+
+              <span
+                className="ml-3 grid h-8 w-8 place-items-center rounded-full border border-[color:var(--color-ink)]/30 text-xs uppercase tracking-wider text-[color:var(--color-ink)]/70"
+                aria-label={user.email ?? "Account"}
+                title={user.email ?? undefined}
               >
                 {user.email?.[0]?.toUpperCase() ?? "•"}
-              </Link>
-              <form action="/auth/sign-out" method="post">
+              </span>
+
+              <form action="/auth/sign-out" method="post" className="ml-1">
                 <button
                   type="submit"
-                  className="text-[color:var(--color-ink)]/50 hover:text-[color:var(--color-ink)]/80"
+                  className="rounded-md px-2 py-1.5 text-xs uppercase tracking-[0.18em] text-[color:var(--color-ink)]/45 hover:text-[color:var(--color-ink)]/80"
                 >
                   Sign out
                 </button>
               </form>
             </>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-md bg-[color:var(--color-gold)] px-3 py-1.5 text-[color:var(--color-leather)] hover:opacity-90"
-            >
-              Sign in
-            </Link>
+            <>
+              <NavLink href="/community" active={active === "community"}>
+                Community
+              </NavLink>
+              <Link
+                href="/login"
+                className="ml-2 rounded-md bg-[color:var(--color-gold)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-leather)] hover:opacity-90"
+              >
+                Sign in
+              </Link>
+            </>
           )}
-        </nav>
+        </div>
       </div>
     </header>
+  );
+}
+
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`relative px-3 py-1.5 text-sm transition ${
+        active
+          ? "text-[color:var(--color-ink)]"
+          : "text-[color:var(--color-ink)]/60 hover:text-[color:var(--color-ink)]/90"
+      }`}
+    >
+      {children}
+      {active && (
+        <span
+          aria-hidden
+          className="absolute inset-x-2 -bottom-[1px] h-[2px] rounded-full bg-[color:var(--color-gold)]"
+        />
+      )}
+    </Link>
   );
 }

@@ -152,79 +152,117 @@ export function UploadDropzone() {
     );
   }
 
+  const hasCover = !!coverUrl;
+  const isBusy = stage === "uploading" || stage === "saving";
+
   return (
-    <div className="space-y-6">
-      <div
-        {...getRootProps()}
-        className={`flex h-48 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition ${
-          isDragActive
-            ? "border-[color:var(--color-gold)] bg-[color:var(--color-gold)]/10"
-            : "border-[color:var(--color-ink)]/20 hover:border-[color:var(--color-ink)]/40"
-        }`}
-      >
-        <input {...getInputProps()} />
-        {file ? (
-          <p className="text-sm text-[color:var(--color-ink)]/80">
-            <strong>{file.name}</strong>
-            <br />
-            <span className="text-xs text-[color:var(--color-ink)]/50">
-              {(file.size / (1024 * 1024)).toFixed(1)} MB
-              {meta ? ` · ${meta.pageCount} pages` : ""}
-            </span>
-          </p>
-        ) : (
-          <p className="text-sm text-[color:var(--color-ink)]/70">
-            Drop a PDF here, or click to choose.
-            <br />
-            <span className="text-xs text-[color:var(--color-ink)]/40">
-              Up to 100 MB.
-            </span>
-          </p>
-        )}
+    <div className="space-y-10">
+      <div className="grid items-center gap-6 md:grid-cols-[minmax(0,1fr)_24px_minmax(0,1fr)_24px_minmax(0,1fr)]">
+        {/* Stage 1 — Drop */}
+        <Stage label="1 · drop" caption="parse in browser">
+          <div
+            {...getRootProps()}
+            className={`flex aspect-[3/4] cursor-pointer items-center justify-center rounded-md border-2 border-dashed p-6 text-center transition ${
+              isDragActive
+                ? "border-[color:var(--color-gold)] bg-[color:var(--color-gold)]/10"
+                : "border-[color:var(--color-ink)]/25 hover:border-[color:var(--color-ink)]/45"
+            } ${file ? "bg-[color:var(--color-ink)]/5" : ""}`}
+          >
+            <input {...getInputProps()} />
+            {file ? (
+              <div className="space-y-1 text-sm">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-gold)]/80">
+                  pdf
+                </p>
+                <p className="break-all font-serif text-base text-[color:var(--color-ink)]">
+                  {file.name}
+                </p>
+                <p className="text-xs text-[color:var(--color-ink)]/55">
+                  {(file.size / (1024 * 1024)).toFixed(1)} MB
+                  {meta ? ` · ${meta.pageCount} pages` : ""}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <PdfGlyph />
+                <p className="text-sm text-[color:var(--color-ink)]/75">
+                  Drop a PDF here
+                </p>
+                <p className="text-xs text-[color:var(--color-ink)]/45">
+                  or click · up to 100 MB
+                </p>
+              </div>
+            )}
+          </div>
+        </Stage>
+
+        <Arrow active={hasCover} caption={stage === "parsing" ? "parsing…" : "becomes"} />
+
+        {/* Stage 2 — Cover */}
+        <Stage label="2 · cover" caption="auto-extracted">
+          <div className="flex aspect-[3/4] items-center justify-center rounded-md border border-[color:var(--color-ink)]/15 bg-[color:var(--color-ink)]/5 p-6">
+            {hasCover ? (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={coverUrl ?? ""}
+                  alt="Cover preview"
+                  className="h-[260px] w-auto rounded-sm object-cover shadow-[0_18px_50px_rgba(0,0,0,0.5)]"
+                />
+              </div>
+            ) : (
+              <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/35">
+                — waiting —
+              </p>
+            )}
+          </div>
+        </Stage>
+
+        <Arrow active={hasCover && acceptDmca} caption="placed on shelf" />
+
+        {/* Stage 3 — Shelf */}
+        <Stage label="3 · shelf" caption="ready to read">
+          <div className="flex aspect-[3/4] items-end justify-center gap-1 rounded-md border border-[color:var(--color-ink)]/15 bg-gradient-to-b from-[#1d160e] to-[#0e0a07] p-6">
+            <DummySpine h={140} w={18} />
+            <DummySpine h={170} w={22} />
+            <DummySpine h={210} w={28} active color={spineColor} title={editTitle || "New"} />
+            <DummySpine h={150} w={20} />
+            <DummySpine h={180} w={24} />
+          </div>
+        </Stage>
       </div>
 
-      {stage === "parsing" && (
-        <p className="text-center text-sm text-[color:var(--color-ink)]/60">
-          Reading PDF…
-        </p>
-      )}
-
       {meta && (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-[120px_1fr]">
-          {coverUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverUrl}
-              alt="Cover preview"
-              className="h-[180px] w-[120px] rounded-sm object-cover shadow-lg"
-            />
-          )}
-
-          <div className="space-y-4">
-            <label className="block text-xs uppercase tracking-[0.2em] text-[color:var(--color-ink)]/60">
-              Title
+        <div className="rounded-lg border border-[color:var(--color-ink)]/12 bg-[color:var(--color-ink)]/[0.02] p-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            <label className="block">
+              <span className="block font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/55">
+                Title
+              </span>
               <input
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="mt-2 block w-full rounded-md border border-[color:var(--color-ink)]/20 bg-transparent px-3 py-2 text-sm tracking-normal text-[color:var(--color-ink)]"
+                className="mt-2 block w-full border-b-2 border-[color:var(--color-ink)]/30 bg-transparent px-1 py-2 text-base tracking-normal text-[color:var(--color-ink)] focus:border-[color:var(--color-gold)] focus:outline-none"
               />
             </label>
 
-            <label className="block text-xs uppercase tracking-[0.2em] text-[color:var(--color-ink)]/60">
-              Author
+            <label className="block">
+              <span className="block font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/55">
+                Author
+              </span>
               <input
                 type="text"
                 value={editAuthor}
                 onChange={(e) => setEditAuthor(e.target.value)}
                 placeholder="Optional"
-                className="mt-2 block w-full rounded-md border border-[color:var(--color-ink)]/20 bg-transparent px-3 py-2 text-sm tracking-normal text-[color:var(--color-ink)] placeholder:text-[color:var(--color-ink)]/30"
+                className="mt-2 block w-full border-b-2 border-[color:var(--color-ink)]/30 bg-transparent px-1 py-2 text-base tracking-normal text-[color:var(--color-ink)] placeholder:text-[color:var(--color-ink)]/30 focus:border-[color:var(--color-gold)] focus:outline-none"
               />
             </label>
 
             <fieldset>
-              <legend className="text-xs uppercase tracking-[0.2em] text-[color:var(--color-ink)]/60">
-                Spine colour
+              <legend className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/55">
+                Spine
               </legend>
               <div className="mt-2 flex flex-wrap gap-2">
                 {SPINE_COLORS.map((c) => (
@@ -233,9 +271,9 @@ export function UploadDropzone() {
                     key={c}
                     onClick={() => setSpineColor(c)}
                     aria-label={`Select ${c}`}
-                    className={`h-8 w-8 rounded-full border-2 transition ${
+                    className={`h-9 w-7 rounded-sm border-2 transition ${
                       spineColor === c
-                        ? "border-[color:var(--color-gold)]"
+                        ? "border-[color:var(--color-gold)] shadow-[0_0_0_2px_rgba(201,164,91,0.2)]"
                         : "border-transparent hover:border-[color:var(--color-ink)]/30"
                     }`}
                     style={{ background: c }}
@@ -243,53 +281,167 @@ export function UploadDropzone() {
                 ))}
               </div>
             </fieldset>
-
-            <label className="flex items-start gap-2 text-xs text-[color:var(--color-ink)]/70">
-              <input
-                type="checkbox"
-                checked={acceptDmca}
-                onChange={(e) => setAcceptDmca(e.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                I confirm I have the right to upload this file. KnowHow will
-                remove infringing content on request.
-              </span>
-            </label>
           </div>
-        </div>
-      )}
 
-      {(stage === "uploading" || stage === "saving") && (
-        <div className="space-y-2">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--color-ink)]/10">
-            <div
-              className="h-full bg-[color:var(--color-gold)] transition-all"
-              style={{ width: `${progress}%` }}
+          <label className="mt-6 flex items-start gap-3 text-xs text-[color:var(--color-ink)]/70">
+            <input
+              type="checkbox"
+              checked={acceptDmca}
+              onChange={(e) => setAcceptDmca(e.target.checked)}
+              className="mt-0.5 accent-[color:var(--color-gold)]"
             />
+            <span>
+              I confirm I have the right to upload this file. KnowHow will
+              remove infringing content on request.
+            </span>
+          </label>
+
+          {(stage === "uploading" || stage === "saving") && (
+            <div className="mt-6 space-y-2">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--color-ink)]/10">
+                <div
+                  className="h-full bg-[color:var(--color-gold)] transition-all"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-center font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/50">
+                {stage === "uploading" ? "Uploading…" : "Saving…"}
+              </p>
+            </div>
+          )}
+
+          {error && (
+            <p className="mt-4 rounded-md border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-6 flex items-center justify-end">
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={!canSubmit || isBusy}
+              className="rounded-md bg-[color:var(--color-gold)] px-6 py-3 text-sm font-medium text-[color:var(--color-leather)] shadow-[0_8px_24px_rgba(201,164,91,0.2)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Shelve it →
+            </button>
           </div>
-          <p className="text-center text-xs uppercase tracking-[0.2em] text-[color:var(--color-ink)]/50">
-            {stage === "uploading" ? "Uploading…" : "Saving…"}
-          </p>
         </div>
       )}
 
-      {error && (
+      {!meta && stage === "parsing" && (
+        <p className="text-center font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/50">
+          Reading PDF…
+        </p>
+      )}
+
+      {!meta && error && (
         <p className="rounded-md border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-400">
           {error}
         </p>
       )}
+    </div>
+  );
+}
 
-      {meta && (
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={!canSubmit}
-          className="w-full rounded-md bg-[color:var(--color-gold)] px-4 py-3 text-sm font-medium text-[color:var(--color-leather)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+function Stage({
+  label,
+  caption,
+  children,
+}: {
+  label: string;
+  caption: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3 text-center">
+      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-gold)]/80">
+        {label}
+      </p>
+      {children}
+      <p className="text-xs italic text-[color:var(--color-ink)]/50">
+        {caption}
+      </p>
+    </div>
+  );
+}
+
+function Arrow({ active, caption }: { active: boolean; caption: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <svg
+        width="36"
+        height="14"
+        viewBox="0 0 36 14"
+        className={`transition ${
+          active ? "text-[color:var(--color-gold)]" : "text-[color:var(--color-ink)]/25"
+        }`}
+        aria-hidden
+      >
+        <path
+          d="M2 7 H30 M22 2 L30 7 L22 12"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <p
+        className={`font-mono text-[9px] uppercase tracking-[0.22em] transition ${
+          active ? "text-[color:var(--color-ink)]/70" : "text-[color:var(--color-ink)]/35"
+        }`}
+      >
+        {caption}
+      </p>
+    </div>
+  );
+}
+
+function DummySpine({
+  h,
+  w,
+  color,
+  title,
+  active,
+}: {
+  h: number;
+  w: number;
+  color?: string;
+  title?: string;
+  active?: boolean;
+}) {
+  return (
+    <div
+      className={`relative shrink-0 rounded-[2px] border ${
+        active
+          ? "border-[color:var(--color-gold)]/70 shadow-[0_0_18px_rgba(201,164,91,0.35)]"
+          : "border-black/30"
+      }`}
+      style={{
+        width: w,
+        height: h,
+        background: color
+          ? `linear-gradient(180deg, ${color} 0%, rgba(0,0,0,0.4) 100%)`
+          : "linear-gradient(180deg, #4a3422 0%, #1a0f08 100%)",
+      }}
+    >
+      {title && active && (
+        <span
+          className="absolute inset-x-0 top-3 mx-auto block max-h-[80%] overflow-hidden text-center font-mono text-[8px] uppercase tracking-[0.18em] text-[color:var(--color-ink)]/85"
+          style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
         >
-          Add to my shelf
-        </button>
+          {title}
+        </span>
       )}
+    </div>
+  );
+}
+
+function PdfGlyph() {
+  return (
+    <div className="mx-auto flex h-12 w-9 items-center justify-center rounded-sm border border-[color:var(--color-ink)]/45 font-mono text-[9px] uppercase tracking-[0.18em] text-[color:var(--color-ink)]/60">
+      pdf
     </div>
   );
 }
