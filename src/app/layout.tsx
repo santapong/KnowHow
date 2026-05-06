@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SetupBanner } from "@/components/SetupBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <SetupBanner />
         {children}
         <noscript>
           <div

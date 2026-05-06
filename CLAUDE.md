@@ -173,6 +173,83 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-05-06 — Stripe billing scaffold (Phase 10)
+First-pass billing: subscription tiers (Free 1 GB / Plus 10 GB / Pro 100 GB) wired through Stripe Checkout + Customer Portal. Code is fully plumbed; the user just drops their Stripe keys + Price IDs in env to turn it on.
+
+- **Migration `0003_billing.sql`** — `subscription_tier` + `subscription_status` enums; `subscriptions` table keyed on `user_id` with `stripe_customer_id`, `stripe_subscription_id`, `tier`, `status`, `current_period_end`, `cancel_at_period_end`, `storage_quota_bytes`. RLS: read-own; writes are service-role-only (webhook). New `handle_new_subscription()` trigger seeds a row when a profile is created; backfills existing profiles.
+- **`src/lib/stripe.ts`** — server-side Stripe SDK init (lazy, pinned to `2026-04-22.dahlia`) + `getPlans()` catalogue (free / plus / pro) + `tierForPriceId()` reverse lookup. Price IDs are pulled from env (`STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`) so the user creates the products in their dashboard and just pastes the IDs.
+- **`src/lib/billing.ts`** — `getSubscription(userId)` (synthetic free-tier fallback when no row exists) + `getStorageUsage(userId)` (bytes / quota / pct / over-quota flag) + `formatGb()`.
+- **Server actions in `src/actions/billing.ts`** — `createCheckoutSession({tier})` lazily creates a Stripe customer, opens a Checkout subscription session with `success_url=/settings?billing=success` + `cancel_url=/pricing?billing=cancelled`. `createBillingPortalSession()` opens the Stripe-hosted Customer Portal for self-serve cancellation/upgrade.
+- **Webhook at `src/app/api/stripe/webhook/route.ts`** — node runtime, raw-body HMAC verification via `webhooks.constructEvent`. Handles `checkout.session.completed` + the five `customer.subscription.*` events. Resolves `user_id` from `subscription.metadata.user_id` first, falls back to lookup-by-customer-id. On canceled / unpaid / incomplete_expired, downgrades to Free + resets quota to 1 GB.
+- **`/pricing`** — three-card layout, Plus highlighted as "Most popular", per-card Choose-plan button hits `createCheckoutSession()` and `window.location.href`s to the returned URL. Signed-out clicks bounce through `/login?next=/pricing`. Amber warning banner when Stripe isn't configured.
+- **`/settings` Billing section** — current plan + price + storage cap + renewal date + Cancels-at-period-end indicator; "Manage billing" button hits `createBillingPortalSession()`. Storage section now uses `getStorageUsage()` (real quota from subscription, gold/amber/red bar, dynamic copy at 80% / over).
+- **Upload cap enforcement** — `startBookUpload` checks `getStorageUsage` against `parsed.data.sizeBytes` before issuing a signed URL; returns a typed error pointing at `/pricing`. Soft block at the action layer (signed URL is gated server-side, so the bytes never leave the browser if over cap).
+- **Nav** — adds "Pricing" link for signed-out users (signed-in users have it on `/settings#billing`).
+- **Env** — new vars in `.env.example`: `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`. New `assertStripeConfigured()` helper + `stripeConfigured` flag.
+- **Setup the user still needs to do:** (1) Create three Stripe products with monthly recurring prices in their dashboard, copy the `price_…` IDs into env. (2) Set up a webhook endpoint in Stripe pointing at `${SITE_URL}/api/stripe/webhook` with the six events listed above; copy the `whsec_…` into `STRIPE_WEBHOOK_SECRET`. (3) Apply migration `0003_billing.sql` in the Supabase SQL editor.
+- **Deferred:** annual pricing, team/family plans, usage-based metering. None planned for v1.
+
+Verified: `npm run lint`, `npm run typecheck`, `npm run build` all clean. Routes now: `/`, `/login`, `/shelf`, `/shelf/[id]`, `/shelf/[id]/about`, `/upload`, `/community`, `/settings`, `/u/[handle]`, `/pricing`, `/api/stripe/webhook`, `/wireframes`. Smoke-tested: `/pricing` 200; webhook returns 503 when Stripe isn't configured (graceful, not a stack-trace).
+
+### 2026-05-06 — SPOF audit fixes + missing-UI gap fixes
+Worked through the audit findings end-to-end. Both the SPOFs and the gap-analysis items shipped together so the data model + UI and the runtime hardening land at the same time.
+
+**SPOFs:**
+- Self-host the pdf.js worker. Worker is now copied to `public/pdfjs/pdf.worker.min.mjs` by a `postinstall` script that resolves the file straight out of `node_modules/pdfjs-dist/build`. `src/lib/pdf/worker.ts` points `workerSrc` at `/pdfjs/pdf.worker.min.mjs` instead of `cdn.jsdelivr.net`. Reader no longer hard-fails if the CDN is blocked.
+- Pin `pdfjs-dist` to an exact version (`5.6.205`, no `^`) so a transitive `pdfjs` minor doesn't silently change the worker API surface.
+- `src/lib/env.ts` throws on boot when running in production with `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` missing. The `next build` phase is exempted (build can't read runtime secrets) so static generation still succeeds.
+- `createServiceClient()` now goes through a `assertServiceRoleConfigured()` helper that throws a typed, user-readable error if `SUPABASE_SERVICE_ROLE_KEY` is missing — instead of letting Supabase return a confusing 500.
+- New `src/components/SetupBanner.tsx` rendered above the layout when Supabase isn't configured. Replaces the silent-broken state with a visible amber strip.
+- Excluded `public/pdfjs/**` from ESLint (the bundled worker is minified third-party code).
+
+**Missing UI:**
+- New migration `supabase/migrations/0002_genre_avatars.sql` (idempotent). Adds `books.genre` enum (`fiction | poetry | essays | history | philosophy | other`, default `other`), `profiles.handle` (unique, slug-safe, backfilled from email-prefix), an `avatars` storage bucket (2 MB cap, public read), and updates the `handle_new_user()` trigger to seed a unique handle for new sign-ups.
+- New `src/lib/validation.ts` exports: `BOOK_GENRES`, `BOOK_GENRE_LABELS`, `BookGenre`, `handleSchema`. `createBookSchema` now requires `genre`.
+- Genre is selected during upload (`UploadDropzone` — pill row above DMCA), persisted by `finalizeBookUpload`, and used to filter `/community` (real query param `?genre=fiction`, real DB filter via `listPublicBooks({ genre, query })`).
+- Real search on `/shelf` (`?q=…` → `listOwnBooks(userId, query)` runs an `ilike` on title/author) and `/community` (same param, same SQL pattern). Two new client components: `ShelfSearch`, `CommunitySearch`.
+- `/u/[handle]` route — public profile + that user's public shelf, fetched by `listBooksByOwnerHandle()`. Avatar (or initial), display name, handle, book count + total pages, 3D-vs-grid toggle, link back to `/community`.
+- Avatar upload + display: new server actions `startAvatarUpload` / `finalizeAvatarUpload` issue a signed upload URL into the new `avatars` bucket, finalize updates `profiles.avatar_url`, and the action also prunes older avatar files for the same user. `SettingsForm` rebuilt around an avatar circle + display name + handle + email; `Nav` now renders the avatar (or initial) as a link to `/settings`.
+- New route `/shelf/[id]/about` — book detail page with cover, title, author, genre badge, page count, file size, "shelved by" link, your-progress bar, and big "Resume reading →" / "Read in 2D" buttons.
+- New `<ReaderTocPill>` client component: lazily loads the PDF outline (via `getOutline()` → `getDestination()` → `getPageIndex()`), renders a right-side drawer with chapter rows, navigates to `?page=N` when clicked. Reader page now respects `?page=N` (clamped to `[1, page_count]`) and uses it as `initialPage` over the persisted reading state.
+- `error.tsx` rewritten — branches the message by `error.message` content (Supabase setup vs storage signed-URL issues vs unknown), shows `error.digest`, gives a "Back home" escape.
+- Login: callback errors land in `?error=…`; `LoginForm` initializes its `error` state from that query param so the user sees the failure reason without a refresh-loop.
+
+**Deferred / not done:**
+- Reader chrome's `Aa` pill is still a placeholder (no font-size control yet).
+- Supabase outage ⇒ status banner is config-only (`SetupBanner`); no health-poll for live outages.
+- Upload retry-with-backoff for transient signed-URL upload failures still TBD; current code surfaces the raw error.
+
+Verified: `npm run lint`, `npm run typecheck`, `npm run build` all clean. Routes now: `/`, `/login`, `/shelf`, `/shelf/[id]`, `/shelf/[id]/about`, `/upload`, `/community`, `/settings`, `/u/[handle]`, `/wireframes`.
+
+### 2026-05-04 — Hi-fi pass on the remaining six screens (login / shelf / upload / reader / community / settings)
+- **Decided:** **Bold** for login, shelf, upload, reader, community; **Safe** for settings. Bold matches the landing's "book is the interface" philosophy; Settings stays Safe because it's a utility screen where conventional left-rail + form helps users find things.
+- **`/login`** (Bold, split-screen): left half — warm-leather pane with stacked `BookCameo` covers + tilted "The Library" entry-pass quote ("A bookshelf is a private museum, curated by lamplight."); right half — corner brand, "step 1 of 1 / Step inside." display + underline-style email field + primary "send magic link →" + Google as inline text-link with icon. `LoginForm` re-ordered: magic link first, Google as secondary text link.
+- **`/shelf`** (Bold): full-width hero strip — eyebrow stats (`N books · X.X GB · last opened: …`) + serif "My shelf." headline; pills row (3D / Grid + + Upload primary); shelf rendered against a warm vertical gradient panel (no card containment).
+- **`/upload`** (Bold, three-frame transformation): "File → Cover → Shelf." headline; `UploadDropzone` redesigned around three labelled stages (drop / cover / shelf-preview) connected by `Arrow`s that activate as the upload progresses; below — title / author / spine row + DMCA + "shelve it →" primary on the right.
+- **`/shelf/[id]`** (Bold reader): replaced shared `<Nav>` with floating, opacity-fading `<ReaderChrome>` (left: ← shelf + book title mono; right: Aa pill + 3D/2D toggle). Chrome dissolves after 3s of no input and re-emerges on pointer/key/touch. 2D viewer wrapped in a centered max-w container; 3D stays full-bleed.
+- **`/community`** (Bold): hero strip with stats (`{count} public books · {readers} readers`) + serif "The shared library." + filter pills (visual placeholders — All / Fiction / Poetry / Essays / History / Philosophy) + 3D/Grid toggle; shelf rendered against the warm gradient panel.
+- **`/settings`** (Safe): left rail with Profile / Storage / Privacy / Danger zone anchors; main column with Profile (avatar circle + display name + email read-only via `SettingsForm`), Storage (real numbers from `listOwnBooks` — total GB used + book count + public count + 1 GB free-tier bar), Privacy (copy explaining per-book opt-in).
+- **Shared `<Nav>`** updated to a hi-fi version of the wireframe AppBar: small book glyph + serif "KnowHow", right-aligned nav links with an `active` prop that paints a gold underline under the current section. Each app page passes its `active` key (shelf / upload / community / settings).
+- **New: `src/components/ReaderChrome.tsx`** — `"use client"` opacity-fade wrapper; listens to pointermove / keydown / touchstart, sets `opacity: 1` and resets a 3s timer; collapses to `opacity: 0` when idle. `pointer-events-none` on the wrapper, `pointer-events-auto` on inner action groups, so clicks pass through to the 3D book.
+- Verified locally: lint / typecheck / build all clean. Static routes still: `/`, `/login`, `/shelf`, `/upload`, `/wireframes`. Dynamic: `/community`, `/settings`, `/shelf/[id]` (unchanged).
+- **Open:** UAT — needs a real Supabase project to actually exercise login / upload / reader. Direction is now picked end-to-end; next step is reacting to the live app.
+
+### 2026-05-04 — Hi-fi pass on `/` landing — LandingBold direction
+- **Decided:** carry the wireframes into the real app one screen at a time, hi-fi (proper type, real components, no sketch chrome). Starting with the landing as a sample so the user can react before we touch the other six screens.
+- **Direction picked:** **Bold** for landing — full-bleed book-as-hero, asymmetric type bottom-left, body+CTA bottom-right, corner brand + corner sign-in (no shared `<Nav>`). Both chat transcripts called the book-opening the hero moment.
+- `src/app/page.tsx`: rewritten. Drops the centered hero + shared `<Nav>`; adds corner brand top-left, "Sign in" top-right, eyebrow + huge serif "Read it like a book." headline bottom-left, body + "Begin →" CTA + "browse community" link bottom-right. R3F `LandingScene` stays as the full-bleed background. Mobile fallback stacks the corner blocks at the bottom.
+- Typography: `--font-serif` (Georgia/Cambria from `globals.css`) for the display headline, Tailwind `font-mono` for eyebrow text. No new font dependencies — kept the change tight.
+- Vignette: radial + bottom gradient over the canvas so text reads against the warm-leather backdrop.
+- Verified locally: lint / typecheck / build clean; `/` is statically generated.
+- **Open:** which direction (safe / bold) to apply to login / shelf / upload / reader / community / settings — awaiting user call after they look at this landing.
+
+### 2026-05-04 — Wireframes pixel-pass against re-fetched design bundle
+- Re-fetched the `KnowHow Wireframes.html` handoff bundle from `claude.ai/design` and diffed against the existing `/wireframes` port. The port from 2026-05-02 was already a faithful reproduction; only minor pixel discrepancies remained.
+- `screens.tsx` `UploadBold`: restored the design's `bottom: 0` + `gap: 80` for the three-frame transformation row (was `bottom: 120` + `gap: 60`, which compressed the layout off-design).
+- `screens.tsx` `ShelfBold` + `ReaderBold`: removed redundant wrapper `<span>` around `<Mono>`s with `marginLeft: 16`; pass the style directly to `<Mono>` to match the design's component composition.
+- Storyboard remains self-contained — no app-route changes. Still awaiting user direction on which safe-vs-bold variants to carry into hi-fi.
+- Verified locally: lint / typecheck / build clean; `/wireframes` is statically generated.
+
 ### 2026-05-02 — Wireframe storyboard ported to `/wireframes`
 - Added `src/app/wireframes/` route that recreates the Claude Design wireframe handoff (7 screens × 2 directions = 14 frames + readme, plus 5-palette theme tweaks).
 - Files: `page.tsx` (next/font/google for Architects Daughter / Caveat / IBM Plex Mono), `WireframesView.tsx` (canvas + tweaks panel), `components.tsx` (Box, Hand, Display, Mono, Squiggle, Spine, Cover, Note, Pill, Btn, Frame, AppBar primitives), `screens.tsx` (Landing/Login/Shelf/Upload/Reader/Community/Settings safe+bold), `wireframes.css` (theme tokens scoped via `data-theme` on artboard wrappers; CSS vars cascade into `.wf-root`).

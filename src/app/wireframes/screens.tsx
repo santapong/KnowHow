@@ -605,9 +605,7 @@ export function ShelfBold() {
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Box w={20} h={26} filled rounded={2} />
           <Display size={20}>KnowHow</Display>
-          <span style={{ marginLeft: 16 }}>
-            <Mono>my shelf · 13 books</Mono>
-          </span>
+          <Mono style={{ marginLeft: 16 }}>my shelf · 13 books</Mono>
         </div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <Hand size={13} color={W.ink2}>
@@ -868,11 +866,11 @@ export function UploadBold() {
           top: 80,
           left: 0,
           right: 0,
-          bottom: 120,
+          bottom: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 60,
+          gap: 80,
         }}
       >
         <div style={{ textAlign: "center" }}>
@@ -1232,9 +1230,7 @@ export function ReaderBold() {
         <Hand size={13} color={W.ink2}>
           ← shelf
         </Hand>
-        <span style={{ marginLeft: 16 }}>
-          <Mono>Beloved · Morrison</Mono>
-        </span>
+        <Mono style={{ marginLeft: 16 }}>Beloved · Morrison</Mono>
       </div>
       <div
         style={{

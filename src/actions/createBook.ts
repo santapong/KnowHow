@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { createBookSchema, type CreateBookInput } from "@/lib/validation";
+import { getStorageUsage } from "@/lib/billing";
+import { formatGb } from "@/lib/billing";
 
 const PDF_BUCKET = "pdfs";
 const COVER_BUCKET = "covers";
@@ -33,6 +35,19 @@ export async function startBookUpload(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in" };
+
+  // Storage-cap enforcement. The upload itself goes direct to Supabase via
+  // a signed URL, so we gate the signed-URL grant rather than the PUT.
+  const usage = await getStorageUsage(user.id);
+  if (usage.bytes + parsed.data.sizeBytes > usage.quotaBytes) {
+    return {
+      ok: false,
+      error:
+        `This upload would put you at ${formatGb(usage.bytes + parsed.data.sizeBytes)} ` +
+        `which is over your ${formatGb(usage.quotaBytes)} cap. ` +
+        `Upgrade at /pricing or remove a book first.`,
+    };
+  }
 
   const bookId = crypto.randomUUID();
   const pdfPath = `${user.id}/${bookId}.pdf`;
@@ -95,6 +110,7 @@ export async function finalizeBookUpload(
     author: input.author,
     page_count: input.pageCount,
     spine_color: input.spineColor,
+    genre: input.genre,
     cover_path: input.coverPath,
     pdf_path: input.pdfPath,
     size_bytes: input.sizeBytes,

@@ -8,11 +8,12 @@ import { env } from "@/lib/env";
 export function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") ?? "/shelf";
+  const callbackError = params.get("error");
 
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState<"email" | "google" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(callbackError);
 
   const callbackUrl = `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`;
 
@@ -46,53 +47,50 @@ export function LoginForm() {
   }
 
   return (
-    <div className="space-y-5">
-      <button
-        type="button"
-        onClick={onGoogle}
-        disabled={pending !== null}
-        className="flex w-full items-center justify-center gap-2 rounded-md border border-[color:var(--color-ink)]/20 bg-white/5 px-4 py-3 text-sm font-medium text-[color:var(--color-ink)] transition hover:bg-white/10 disabled:opacity-50"
-      >
-        <GoogleIcon />
-        {pending === "google" ? "Redirecting…" : "Continue with Google"}
-      </button>
-
-      <div className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-[color:var(--color-ink)]/40">
-        <span className="h-px flex-1 bg-[color:var(--color-ink)]/15" />
-        or
-        <span className="h-px flex-1 bg-[color:var(--color-ink)]/15" />
-      </div>
-
-      <form onSubmit={onMagicLink} className="space-y-3">
-        <label className="block text-xs uppercase tracking-[0.2em] text-[color:var(--color-ink)]/60">
-          Email
+    <div className="space-y-7">
+      <form onSubmit={onMagicLink} className="space-y-7">
+        <label className="block">
+          <span className="block font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/55">
+            Email
+          </span>
           <input
             type="email"
             required
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="mt-2 block w-full rounded-md border border-[color:var(--color-ink)]/20 bg-transparent px-3 py-2.5 text-sm tracking-normal text-[color:var(--color-ink)] placeholder:text-[color:var(--color-ink)]/30 focus:border-[color:var(--color-gold)] focus:outline-none"
+            placeholder="you@somewhere.com"
+            className="mt-2 block w-full border-b-2 border-[color:var(--color-ink)]/40 bg-transparent px-1 py-2 text-base tracking-normal text-[color:var(--color-ink)] placeholder:text-[color:var(--color-ink)]/30 focus:border-[color:var(--color-gold)] focus:outline-none"
           />
         </label>
 
         <button
           type="submit"
           disabled={pending !== null || !email}
-          className="w-full rounded-md bg-[color:var(--color-gold)] px-4 py-3 text-sm font-medium text-[color:var(--color-leather)] transition hover:opacity-90 disabled:opacity-50"
+          className="inline-flex items-center justify-center rounded-md bg-[color:var(--color-gold)] px-6 py-3 text-sm font-medium text-[color:var(--color-leather)] shadow-[0_8px_24px_rgba(201,164,91,0.25)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {pending === "email" ? "Sending…" : "Send magic link"}
+          {pending === "email" ? "Sending…" : "Send magic link →"}
         </button>
       </form>
 
+      <p className="text-sm text-[color:var(--color-ink)]/65">
+        or{" "}
+        <button
+          type="button"
+          onClick={onGoogle}
+          disabled={pending !== null}
+          className="inline-flex items-center gap-1.5 border-b border-[color:var(--color-ink)]/45 pb-0.5 text-[color:var(--color-ink)] transition hover:border-[color:var(--color-gold)] hover:text-[color:var(--color-gold)] disabled:opacity-50"
+        >
+          <GoogleIcon />
+          {pending === "google" ? "redirecting…" : "continue with Google"}
+        </button>
+      </p>
+
       {message && (
-        <p className="text-center text-sm text-[color:var(--color-gold)]">
-          {message}
-        </p>
+        <p className="text-sm text-[color:var(--color-gold)]">{message}</p>
       )}
       {error && (
-        <p className="text-center text-sm text-red-400">{error}</p>
+        <p className="text-sm text-red-400">{error}</p>
       )}
     </div>
   );
@@ -100,7 +98,7 @@ export function LoginForm() {
 
 function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 18 18" aria-hidden="true">
       <path
         fill="#4285F4"
         d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.92c1.71-1.57 2.7-3.89 2.7-6.6Z"
