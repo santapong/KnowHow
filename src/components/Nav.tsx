@@ -85,6 +85,7 @@ export async function Nav({ active }: NavProps = {}) {
               <NavLink href="/community" active={active === "community"}>
                 Community
               </NavLink>
+              <NavLink href="/pricing">Pricing</NavLink>
               <Link
                 href="/login"
                 className="ml-2 rounded-md bg-[color:var(--color-gold)] px-3 py-1.5 text-sm font-medium text-[color:var(--color-leather)] hover:opacity-90"

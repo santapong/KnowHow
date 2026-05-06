@@ -173,6 +173,24 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-05-06 — Stripe billing scaffold (Phase 10)
+First-pass billing: subscription tiers (Free 1 GB / Plus 10 GB / Pro 100 GB) wired through Stripe Checkout + Customer Portal. Code is fully plumbed; the user just drops their Stripe keys + Price IDs in env to turn it on.
+
+- **Migration `0003_billing.sql`** — `subscription_tier` + `subscription_status` enums; `subscriptions` table keyed on `user_id` with `stripe_customer_id`, `stripe_subscription_id`, `tier`, `status`, `current_period_end`, `cancel_at_period_end`, `storage_quota_bytes`. RLS: read-own; writes are service-role-only (webhook). New `handle_new_subscription()` trigger seeds a row when a profile is created; backfills existing profiles.
+- **`src/lib/stripe.ts`** — server-side Stripe SDK init (lazy, pinned to `2026-04-22.dahlia`) + `getPlans()` catalogue (free / plus / pro) + `tierForPriceId()` reverse lookup. Price IDs are pulled from env (`STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`) so the user creates the products in their dashboard and just pastes the IDs.
+- **`src/lib/billing.ts`** — `getSubscription(userId)` (synthetic free-tier fallback when no row exists) + `getStorageUsage(userId)` (bytes / quota / pct / over-quota flag) + `formatGb()`.
+- **Server actions in `src/actions/billing.ts`** — `createCheckoutSession({tier})` lazily creates a Stripe customer, opens a Checkout subscription session with `success_url=/settings?billing=success` + `cancel_url=/pricing?billing=cancelled`. `createBillingPortalSession()` opens the Stripe-hosted Customer Portal for self-serve cancellation/upgrade.
+- **Webhook at `src/app/api/stripe/webhook/route.ts`** — node runtime, raw-body HMAC verification via `webhooks.constructEvent`. Handles `checkout.session.completed` + the five `customer.subscription.*` events. Resolves `user_id` from `subscription.metadata.user_id` first, falls back to lookup-by-customer-id. On canceled / unpaid / incomplete_expired, downgrades to Free + resets quota to 1 GB.
+- **`/pricing`** — three-card layout, Plus highlighted as "Most popular", per-card Choose-plan button hits `createCheckoutSession()` and `window.location.href`s to the returned URL. Signed-out clicks bounce through `/login?next=/pricing`. Amber warning banner when Stripe isn't configured.
+- **`/settings` Billing section** — current plan + price + storage cap + renewal date + Cancels-at-period-end indicator; "Manage billing" button hits `createBillingPortalSession()`. Storage section now uses `getStorageUsage()` (real quota from subscription, gold/amber/red bar, dynamic copy at 80% / over).
+- **Upload cap enforcement** — `startBookUpload` checks `getStorageUsage` against `parsed.data.sizeBytes` before issuing a signed URL; returns a typed error pointing at `/pricing`. Soft block at the action layer (signed URL is gated server-side, so the bytes never leave the browser if over cap).
+- **Nav** — adds "Pricing" link for signed-out users (signed-in users have it on `/settings#billing`).
+- **Env** — new vars in `.env.example`: `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PLUS`, `STRIPE_PRICE_PRO`. New `assertStripeConfigured()` helper + `stripeConfigured` flag.
+- **Setup the user still needs to do:** (1) Create three Stripe products with monthly recurring prices in their dashboard, copy the `price_…` IDs into env. (2) Set up a webhook endpoint in Stripe pointing at `${SITE_URL}/api/stripe/webhook` with the six events listed above; copy the `whsec_…` into `STRIPE_WEBHOOK_SECRET`. (3) Apply migration `0003_billing.sql` in the Supabase SQL editor.
+- **Deferred:** annual pricing, team/family plans, usage-based metering. None planned for v1.
+
+Verified: `npm run lint`, `npm run typecheck`, `npm run build` all clean. Routes now: `/`, `/login`, `/shelf`, `/shelf/[id]`, `/shelf/[id]/about`, `/upload`, `/community`, `/settings`, `/u/[handle]`, `/pricing`, `/api/stripe/webhook`, `/wireframes`. Smoke-tested: `/pricing` 200; webhook returns 503 when Stripe isn't configured (graceful, not a stack-trace).
+
 ### 2026-05-06 — SPOF audit fixes + missing-UI gap fixes
 Worked through the audit findings end-to-end. Both the SPOFs and the gap-analysis items shipped together so the data model + UI and the runtime hardening land at the same time.
 

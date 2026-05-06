@@ -3,6 +3,12 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY ?? "";
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
+const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+const stripePricePlus = process.env.STRIPE_PRICE_PLUS ?? "";
+const stripePricePro = process.env.STRIPE_PRICE_PRO ?? "";
+
 const isProd = process.env.NODE_ENV === "production";
 const missingPublic = !supabaseUrl || !supabaseAnonKey;
 
@@ -23,9 +29,17 @@ export const env = {
   supabaseAnonKey,
   siteUrl,
   serviceRoleKey,
+  stripeSecretKey,
+  stripeWebhookSecret,
+  stripePublishableKey,
+  stripePricePlus,
+  stripePricePro,
 };
 
 export const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const stripeConfigured = Boolean(
+  stripeSecretKey && stripePublishableKey && (stripePricePlus || stripePricePro),
+);
 
 /**
  * Throws a clear error when a server action / RSC needs the service-role key
@@ -36,6 +50,19 @@ export function assertServiceRoleConfigured(): void {
     throw new Error(
       "SUPABASE_SERVICE_ROLE_KEY is not set. Server-side privileged " +
         "operations (uploads, account deletion) require it.",
+    );
+  }
+}
+
+/**
+ * Throws when a server action tries to talk to Stripe but the secret key
+ * isn't configured — e.g. local dev without billing.
+ */
+export function assertStripeConfigured(): void {
+  if (!stripeSecretKey) {
+    throw new Error(
+      "STRIPE_SECRET_KEY is not set. Set the Stripe secret + publishable + " +
+        "price IDs to enable billing.",
     );
   }
 }

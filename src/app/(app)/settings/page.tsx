@@ -1,8 +1,11 @@
 import { Nav } from "@/components/Nav";
 import { SettingsForm } from "@/components/SettingsForm";
+import { SubscriptionSection } from "@/components/SubscriptionSection";
 import { createClient } from "@/lib/supabase/server";
 import { getUserOrRedirect } from "@/lib/auth/getUser";
-import { listOwnBooks } from "@/lib/books";
+import { getStorageUsage, getSubscription, formatGb } from "@/lib/billing";
+import { planForTier } from "@/lib/stripe";
+import { stripeConfigured } from "@/lib/env";
 
 export const metadata = { title: "Settings · KnowHow" };
 export const dynamic = "force-dynamic";
@@ -11,26 +14,38 @@ type Section = { id: string; label: string; danger?: boolean };
 
 const SECTIONS: Section[] = [
   { id: "profile", label: "Profile" },
+  { id: "billing", label: "Billing" },
   { id: "storage", label: "Storage" },
   { id: "privacy", label: "Privacy" },
   { id: "danger", label: "Danger zone", danger: true },
 ];
 
-export default async function SettingsPage() {
+type SearchParams = Promise<{ billing?: string }>;
+
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const user = await getUserOrRedirect("/settings");
+  const { billing } = await searchParams;
   const supabase = await createClient();
-  const [{ data: profile }, books] = await Promise.all([
+  const [{ data: profile }, sub, usage] = await Promise.all([
     supabase
       .from("profiles")
       .select("display_name, handle, avatar_url")
       .eq("id", user.id)
       .maybeSingle(),
-    listOwnBooks(user.id),
+    getSubscription(user.id),
+    getStorageUsage(user.id),
   ]);
 
-  const totalBytes = books.reduce((sum, b) => sum + (b.size_bytes ?? 0), 0);
-  const totalGb = totalBytes / (1024 * 1024 * 1024);
-  const publicCount = books.filter((b) => b.is_public).length;
+  const plan = planForTier(sub.tier);
+  const publicCount = (await supabase
+    .from("books")
+    .select("id", { count: "exact", head: true })
+    .eq("owner_id", user.id)
+    .eq("is_public", true)).count ?? 0;
 
   return (
     <>
@@ -76,21 +91,59 @@ export default async function SettingsPage() {
             </div>
           </section>
 
-          <section id="storage" className="mt-14 max-w-2xl border-t border-[color:var(--color-ink)]/10 pt-10">
+          <section
+            id="billing"
+            className="mt-14 max-w-2xl border-t border-[color:var(--color-ink)]/10 pt-10"
+          >
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">
+              Billing
+            </h2>
+            <div className="mt-4">
+              <SubscriptionSection
+                tier={sub.tier}
+                status={sub.status}
+                planName={plan.name}
+                priceLabel={plan.priceLabel}
+                storageLabel={plan.storageLabel}
+                hasStripeCustomer={!!sub.stripe_customer_id}
+                currentPeriodEnd={sub.current_period_end}
+                cancelAtPeriodEnd={sub.cancel_at_period_end}
+                stripeAvailable={stripeConfigured}
+                billingFlash={billing ?? null}
+              />
+            </div>
+          </section>
+
+          <section
+            id="storage"
+            className="mt-14 max-w-2xl border-t border-[color:var(--color-ink)]/10 pt-10"
+          >
             <h2 className="font-serif text-2xl font-semibold tracking-tight">
               Storage
             </h2>
             <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-ink)]/55">
-              {totalGb.toFixed(2)} GB · {books.length} books · {publicCount} public
+              {formatGb(usage.bytes)} of {formatGb(usage.quotaBytes)} ·{" "}
+              {usage.bookCount} books · {publicCount} public
             </p>
             <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-ink)]/10">
               <div
-                className="h-full rounded-full bg-[color:var(--color-gold)] transition-all"
-                style={{ width: `${Math.min(100, (totalGb / 1) * 100)}%` }}
+                className={`h-full rounded-full transition-all ${
+                  usage.isOverQuota
+                    ? "bg-red-500"
+                    : usage.pctUsed > 80
+                      ? "bg-amber-400"
+                      : "bg-[color:var(--color-gold)]"
+                }`}
+                style={{ width: `${usage.pctUsed}%` }}
               />
             </div>
             <p className="mt-2 text-xs text-[color:var(--color-ink)]/50">
-              Free tier · 1.0 GB. Larger libraries can migrate to R2 (v2).
+              {plan.name} · {plan.storageLabel} cap.{" "}
+              {usage.isOverQuota
+                ? "You're over your storage cap — upgrade or remove a book to add more."
+                : usage.pctUsed > 80
+                  ? "You're close to your cap. Consider upgrading before your next upload."
+                  : "Plenty of room to keep adding books."}
             </p>
           </section>
 
