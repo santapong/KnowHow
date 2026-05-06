@@ -4,7 +4,12 @@ import { useCallback, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
 import { parsePdf, type PdfMeta } from "@/lib/pdf/parse";
-import { SPINE_COLORS } from "@/lib/validation";
+import {
+  BOOK_GENRES,
+  BOOK_GENRE_LABELS,
+  SPINE_COLORS,
+  type BookGenre,
+} from "@/lib/validation";
 import { startBookUpload, finalizeBookUpload } from "@/actions/createBook";
 import { createClient } from "@/lib/supabase/client";
 
@@ -20,6 +25,7 @@ export function UploadDropzone() {
   const [spineColor, setSpineColor] = useState<(typeof SPINE_COLORS)[number]>(
     SPINE_COLORS[0],
   );
+  const [genre, setGenre] = useState<BookGenre>("other");
   const [acceptDmca, setAcceptDmca] = useState(false);
   const [stage, setStage] = useState<Stage>("idle");
   const [progress, setProgress] = useState(0);
@@ -82,6 +88,7 @@ export function UploadDropzone() {
       author: editAuthor.trim() || null,
       pageCount: meta.pageCount,
       spineColor,
+      genre,
       sizeBytes: file.size,
       acceptDmca: true,
     });
@@ -126,6 +133,7 @@ export function UploadDropzone() {
       author: editAuthor.trim() || null,
       pageCount: meta.pageCount,
       spineColor,
+      genre,
       sizeBytes: file.size,
       acceptDmca: true,
       pdfPath: start.pdfPath,
@@ -282,6 +290,28 @@ export function UploadDropzone() {
               </div>
             </fieldset>
           </div>
+
+          <label className="mt-6 block">
+            <span className="block font-mono text-[10px] uppercase tracking-[0.22em] text-[color:var(--color-ink)]/55">
+              Genre
+            </span>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {BOOK_GENRES.map((g) => (
+                <button
+                  type="button"
+                  key={g}
+                  onClick={() => setGenre(g)}
+                  className={`rounded-full border px-3 py-1.5 text-xs tracking-wide transition ${
+                    genre === g
+                      ? "border-[color:var(--color-gold)]/70 bg-[color:var(--color-gold)]/15 text-[color:var(--color-gold)]"
+                      : "border-[color:var(--color-ink)]/20 text-[color:var(--color-ink)]/65 hover:border-[color:var(--color-ink)]/40"
+                  }`}
+                >
+                  {BOOK_GENRE_LABELS[g]}
+                </button>
+              ))}
+            </div>
+          </label>
 
           <label className="mt-6 flex items-start gap-3 text-xs text-[color:var(--color-ink)]/70">
             <input

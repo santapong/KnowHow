@@ -2,12 +2,13 @@ import Link from "next/link";
 import { Nav } from "@/components/Nav";
 import { Shelf } from "@/components/Shelf";
 import { BookManageList } from "@/components/BookManageList";
+import { ShelfSearch } from "@/components/ShelfSearch";
 import { listOwnBooks } from "@/lib/books";
 import { getUserOrRedirect } from "@/lib/auth/getUser";
 
 export const metadata = { title: "My shelf · KnowHow" };
 
-type SearchParams = Promise<{ view?: string }>;
+type SearchParams = Promise<{ view?: string; q?: string }>;
 
 export default async function ShelfPage({
   searchParams,
@@ -15,9 +16,10 @@ export default async function ShelfPage({
   searchParams: SearchParams;
 }) {
   const user = await getUserOrRedirect("/shelf");
-  const books = await listOwnBooks(user.id);
-  const { view } = await searchParams;
+  const { view, q } = await searchParams;
   const forceGrid = view === "grid";
+  const query = q?.trim() || undefined;
+  const books = await listOwnBooks(user.id, query);
 
   const totalBytes = books.reduce((sum, b) => sum + (b.size_bytes ?? 0), 0);
   const totalGb = totalBytes / (1024 * 1024 * 1024);
@@ -41,8 +43,17 @@ export default async function ShelfPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <ShelfSearch initialQuery={query ?? ""} forceGrid={forceGrid} />
               <Link
-                href={forceGrid ? "/shelf" : "/shelf?view=grid"}
+                href={
+                  forceGrid
+                    ? query
+                      ? `/shelf?q=${encodeURIComponent(query)}`
+                      : "/shelf"
+                    : query
+                      ? `/shelf?view=grid&q=${encodeURIComponent(query)}`
+                      : "/shelf?view=grid"
+                }
                 className="rounded-full border border-[color:var(--color-ink)]/20 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-[color:var(--color-ink)]/60 hover:border-[color:var(--color-ink)]/40 hover:text-[color:var(--color-ink)]/90"
               >
                 {forceGrid ? "3D shelf" : "Grid view"}

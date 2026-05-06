@@ -95,6 +95,7 @@ export async function finalizeBookUpload(
     author: input.author,
     page_count: input.pageCount,
     spine_color: input.spineColor,
+    genre: input.genre,
     cover_path: input.coverPath,
     pdf_path: input.pdfPath,
     size_bytes: input.sizeBytes,

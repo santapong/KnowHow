@@ -18,9 +18,10 @@ type Props = {
   books: BookWithCover[];
   emptyHref?: string;
   forceFallback?: boolean;
+  showOwner?: boolean;
 };
 
-export function Shelf({ books, emptyHref = "/upload", forceFallback }: Props) {
+export function Shelf({ books, emptyHref = "/upload", forceFallback, showOwner }: Props) {
   if (books.length === 0) {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-[color:var(--color-ink)]/15 p-10 text-center">
@@ -38,7 +39,7 @@ export function Shelf({ books, emptyHref = "/upload", forceFallback }: Props) {
   }
 
   if (forceFallback) {
-    return <ShelfGridFallback books={books} />;
+    return <ShelfGridFallback books={books} showOwner={showOwner} />;
   }
 
   return <BookshelfScene books={books} />;

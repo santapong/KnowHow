@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import type { BookWithCover } from "@/lib/books";
+import { BOOK_GENRE_LABELS } from "@/lib/validation";
 
-export function ShelfGridFallback({ books }: { books: BookWithCover[] }) {
+export function ShelfGridFallback({
+  books,
+  showOwner,
+}: {
+  books: BookWithCover[];
+  showOwner?: boolean;
+}) {
   return (
     <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
       {books.map((b) => (
-        <li key={b.id}>
+        <li key={b.id} className="space-y-1.5">
           <Link
             href={`/shelf/${b.id}`}
             className="group block overflow-hidden rounded-md bg-[color:var(--color-ink)]/5 transition hover:bg-[color:var(--color-ink)]/10"
@@ -30,6 +37,24 @@ export function ShelfGridFallback({ books }: { books: BookWithCover[] }) {
               )}
             </div>
           </Link>
+          {showOwner && b.owner && (
+            <p className="px-2 text-xs text-[color:var(--color-ink)]/55">
+              {b.owner.handle ? (
+                <Link
+                  href={`/u/${b.owner.handle}`}
+                  className="hover:text-[color:var(--color-gold)]"
+                >
+                  {b.owner.display_name ?? b.owner.handle}
+                </Link>
+              ) : (
+                b.owner.display_name ?? "Anonymous"
+              )}
+              {" · "}
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--color-ink)]/45">
+                {BOOK_GENRE_LABELS[b.genre] ?? "—"}
+              </span>
+            </p>
+          )}
         </li>
       ))}
     </ul>

@@ -8,11 +8,12 @@ import { env } from "@/lib/env";
 export function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") ?? "/shelf";
+  const callbackError = params.get("error");
 
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState<"email" | "google" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(callbackError);
 
   const callbackUrl = `${env.siteUrl}/auth/callback?next=${encodeURIComponent(next)}`;
 

@@ -20,7 +20,11 @@ export default async function SettingsPage() {
   const user = await getUserOrRedirect("/settings");
   const supabase = await createClient();
   const [{ data: profile }, books] = await Promise.all([
-    supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle(),
+    supabase
+      .from("profiles")
+      .select("display_name, handle, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle(),
     listOwnBooks(user.id),
   ]);
 
@@ -62,21 +66,13 @@ export default async function SettingsPage() {
               {user.email}
             </p>
 
-            <div className="mt-10 flex items-start gap-6">
-              <div className="text-center">
-                <div
-                  aria-hidden
-                  className="grid h-20 w-20 place-items-center rounded-full border border-[color:var(--color-ink)]/25 bg-[color:var(--color-ink)]/5 font-serif text-2xl text-[color:var(--color-ink)]/70"
-                >
-                  {user.email?.[0]?.toUpperCase() ?? "•"}
-                </div>
-                <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[color:var(--color-ink)]/40">
-                  avatar
-                </p>
-              </div>
-              <div className="flex-1">
-                <SettingsForm initialDisplayName={profile?.display_name ?? ""} />
-              </div>
+            <div className="mt-10">
+              <SettingsForm
+                initialDisplayName={profile?.display_name ?? ""}
+                initialHandle={profile?.handle ?? ""}
+                initialAvatarUrl={profile?.avatar_url ?? null}
+                email={user.email ?? null}
+              />
             </div>
           </section>
 

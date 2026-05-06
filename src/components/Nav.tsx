@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getOptionalUser } from "@/lib/auth/getUser";
+import { createClient } from "@/lib/supabase/server";
 
 type NavProps = {
   /** Active route key — adds an accent underline to the matching link. */
@@ -8,6 +9,16 @@ type NavProps = {
 
 export async function Nav({ active }: NavProps = {}) {
   const user = await getOptionalUser();
+  let avatarUrl: string | null = null;
+  if (user) {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", user.id)
+      .maybeSingle();
+    avatarUrl = data?.avatar_url ?? null;
+  }
 
   return (
     <header className="sticky top-0 z-30 border-b border-[color:var(--color-ink)]/10 bg-[#14110d]/85 backdrop-blur">
@@ -42,13 +53,23 @@ export async function Nav({ active }: NavProps = {}) {
                 Settings
               </NavLink>
 
-              <span
-                className="ml-3 grid h-8 w-8 place-items-center rounded-full border border-[color:var(--color-ink)]/30 text-xs uppercase tracking-wider text-[color:var(--color-ink)]/70"
+              <Link
+                href="/settings"
+                className="ml-3 grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-[color:var(--color-ink)]/30 text-xs uppercase tracking-wider text-[color:var(--color-ink)]/70 hover:border-[color:var(--color-gold)]/60"
                 aria-label={user.email ?? "Account"}
                 title={user.email ?? undefined}
               >
-                {user.email?.[0]?.toUpperCase() ?? "•"}
-              </span>
+                {avatarUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={avatarUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (user.email?.[0]?.toUpperCase() ?? "•")
+                )}
+              </Link>
 
               <form action="/auth/sign-out" method="post" className="ml-1">
                 <button

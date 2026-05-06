@@ -173,6 +173,36 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-05-06 — SPOF audit fixes + missing-UI gap fixes
+Worked through the audit findings end-to-end. Both the SPOFs and the gap-analysis items shipped together so the data model + UI and the runtime hardening land at the same time.
+
+**SPOFs:**
+- Self-host the pdf.js worker. Worker is now copied to `public/pdfjs/pdf.worker.min.mjs` by a `postinstall` script that resolves the file straight out of `node_modules/pdfjs-dist/build`. `src/lib/pdf/worker.ts` points `workerSrc` at `/pdfjs/pdf.worker.min.mjs` instead of `cdn.jsdelivr.net`. Reader no longer hard-fails if the CDN is blocked.
+- Pin `pdfjs-dist` to an exact version (`5.6.205`, no `^`) so a transitive `pdfjs` minor doesn't silently change the worker API surface.
+- `src/lib/env.ts` throws on boot when running in production with `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` missing. The `next build` phase is exempted (build can't read runtime secrets) so static generation still succeeds.
+- `createServiceClient()` now goes through a `assertServiceRoleConfigured()` helper that throws a typed, user-readable error if `SUPABASE_SERVICE_ROLE_KEY` is missing — instead of letting Supabase return a confusing 500.
+- New `src/components/SetupBanner.tsx` rendered above the layout when Supabase isn't configured. Replaces the silent-broken state with a visible amber strip.
+- Excluded `public/pdfjs/**` from ESLint (the bundled worker is minified third-party code).
+
+**Missing UI:**
+- New migration `supabase/migrations/0002_genre_avatars.sql` (idempotent). Adds `books.genre` enum (`fiction | poetry | essays | history | philosophy | other`, default `other`), `profiles.handle` (unique, slug-safe, backfilled from email-prefix), an `avatars` storage bucket (2 MB cap, public read), and updates the `handle_new_user()` trigger to seed a unique handle for new sign-ups.
+- New `src/lib/validation.ts` exports: `BOOK_GENRES`, `BOOK_GENRE_LABELS`, `BookGenre`, `handleSchema`. `createBookSchema` now requires `genre`.
+- Genre is selected during upload (`UploadDropzone` — pill row above DMCA), persisted by `finalizeBookUpload`, and used to filter `/community` (real query param `?genre=fiction`, real DB filter via `listPublicBooks({ genre, query })`).
+- Real search on `/shelf` (`?q=…` → `listOwnBooks(userId, query)` runs an `ilike` on title/author) and `/community` (same param, same SQL pattern). Two new client components: `ShelfSearch`, `CommunitySearch`.
+- `/u/[handle]` route — public profile + that user's public shelf, fetched by `listBooksByOwnerHandle()`. Avatar (or initial), display name, handle, book count + total pages, 3D-vs-grid toggle, link back to `/community`.
+- Avatar upload + display: new server actions `startAvatarUpload` / `finalizeAvatarUpload` issue a signed upload URL into the new `avatars` bucket, finalize updates `profiles.avatar_url`, and the action also prunes older avatar files for the same user. `SettingsForm` rebuilt around an avatar circle + display name + handle + email; `Nav` now renders the avatar (or initial) as a link to `/settings`.
+- New route `/shelf/[id]/about` — book detail page with cover, title, author, genre badge, page count, file size, "shelved by" link, your-progress bar, and big "Resume reading →" / "Read in 2D" buttons.
+- New `<ReaderTocPill>` client component: lazily loads the PDF outline (via `getOutline()` → `getDestination()` → `getPageIndex()`), renders a right-side drawer with chapter rows, navigates to `?page=N` when clicked. Reader page now respects `?page=N` (clamped to `[1, page_count]`) and uses it as `initialPage` over the persisted reading state.
+- `error.tsx` rewritten — branches the message by `error.message` content (Supabase setup vs storage signed-URL issues vs unknown), shows `error.digest`, gives a "Back home" escape.
+- Login: callback errors land in `?error=…`; `LoginForm` initializes its `error` state from that query param so the user sees the failure reason without a refresh-loop.
+
+**Deferred / not done:**
+- Reader chrome's `Aa` pill is still a placeholder (no font-size control yet).
+- Supabase outage ⇒ status banner is config-only (`SetupBanner`); no health-poll for live outages.
+- Upload retry-with-backoff for transient signed-URL upload failures still TBD; current code surfaces the raw error.
+
+Verified: `npm run lint`, `npm run typecheck`, `npm run build` all clean. Routes now: `/`, `/login`, `/shelf`, `/shelf/[id]`, `/shelf/[id]/about`, `/upload`, `/community`, `/settings`, `/u/[handle]`, `/wireframes`.
+
 ### 2026-05-04 — Hi-fi pass on the remaining six screens (login / shelf / upload / reader / community / settings)
 - **Decided:** **Bold** for login, shelf, upload, reader, community; **Safe** for settings. Bold matches the landing's "book is the interface" philosophy; Settings stays Safe because it's a utility screen where conventional left-rail + form helps users find things.
 - **`/login`** (Bold, split-screen): left half — warm-leather pane with stacked `BookCameo` covers + tilted "The Library" entry-pass quote ("A bookshelf is a private museum, curated by lamplight."); right half — corner brand, "step 1 of 1 / Step inside." display + underline-style email field + primary "send magic link →" + Google as inline text-link with icon. `LoginForm` re-ordered: magic link first, Google as secondary text link.
