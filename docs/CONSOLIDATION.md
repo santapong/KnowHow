@@ -59,9 +59,35 @@ KnowHow stops being "read novels on a 3D shelf" and grows into **a learning libr
 3. Keep the **3D shelf** as the library browse metaphor — books become courses/lessons.
 4. Wire the **tutor agent** on top of the reader as the v2 AI differentiator.
 
-This is a roadmap direction, not a committed build. None of the above is implemented
-yet — this document records the decision and the salvage so the next session can pick
-it up. KnowHow's shipped v1 functionality is unchanged by this consolidation.
+KnowHow's shipped v1 functionality is unchanged by this consolidation.
+
+### Built so far (first vertical slice)
+
+The read-and-enroll path is implemented (steps 1, 2, 4 above; the 3D shelf metaphor
+and the tutor agent remain roadmap):
+
+- **`supabase/migrations/0004_courses.sql`** — `courses`, `modules`, `lessons`,
+  `enrollments`, `lesson_progress`, ported from the salvaged Prisma model into
+  Supabase idioms with RLS. The linchpin: `lessons.book_id` references `books`, so a
+  lesson opens in the existing reader.
+- **`src/lib/courses.ts`** — data accessors (`listPublishedCourses`,
+  `getCourseBySlug`, `isEnrolled`, `getCompletedLessonIds`).
+- **`src/lib/validation.ts`** — `slugSchema`, `enrollSchema`, `lessonProgressSchema`,
+  `slugify()`.
+- **`src/actions/enroll.ts`** — `enrollInCourse` + `setLessonProgress` server actions.
+- **`/courses`** catalog + **`/courses/[slug]`** detail (module/lesson outline,
+  enroll button, per-lesson "Read →" links into `/shelf/[bookId]`, progress %).
+- **`Nav`** — "Courses" link (signed-in and signed-out).
+
+**Still to build:** instructor authoring UI (create course / add modules+lessons /
+attach a book / publish), a lesson-complete control wired to `setLessonProgress`, the
+3D shelf-as-courses browse view, and the tutor agent. Plus the documented RLS
+limitation below.
+
+**Known limitation:** a lesson's book must be `is_public = true` to be readable by
+enrolled learners, because the reader relies on the existing books/PDF RLS. Granting
+enrolled learners access to *private* lesson PDFs needs a follow-up migration that
+extends the books + storage policies to consult `enrollments`.
 
 ## Status of the other repo
 

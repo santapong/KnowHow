@@ -50,3 +50,30 @@ export const handleSchema = z
   .min(2)
   .max(40)
   .regex(/^[a-z0-9-]+$/i, "Handles can only contain letters, numbers, and dashes.");
+
+// --- Course layer (LMS) ---------------------------------------
+
+export const slugSchema = z
+  .string()
+  .min(2)
+  .max(80)
+  .regex(/^[a-z0-9-]+$/, "Slugs can only contain lowercase letters, numbers, and dashes.");
+
+export const enrollSchema = z.object({
+  courseId: z.string().uuid(),
+});
+
+export const lessonProgressSchema = z.object({
+  lessonId: z.string().uuid(),
+  completed: z.boolean(),
+});
+
+/** Build a URL-safe slug from a free-text title. */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
