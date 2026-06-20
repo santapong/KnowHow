@@ -183,6 +183,15 @@ The user had a second repo, `santapong/Leaning-Platfrom` (a Next.js + Prisma + A
 - **Built (first slice):** migration `0004_courses.sql` (`courses`/`modules`/`lessons`/`enrollments`/`lesson_progress`, RLS, with `lessons.book_id → books` so the reader is the lesson viewer); `src/lib/courses.ts` accessors; `src/actions/enroll.ts` (`enrollInCourse` + `setLessonProgress`); `/courses` catalog + `/courses/[slug]` detail; Nav "Courses" link.
 - **Built (second slice — full LMS):** migration `0005_course_content_access.sql` (`book_unlocked_by_enrollment()` + broadened `books`/`pdfs` RLS so enrolled learners read *private* lesson books — removes the public-only limitation); instructor authoring (`/instructor`, `/instructor/courses/new`, `/instructor/courses/[id]` editor) via `src/actions/courses.ts` + `getOwnCourseById()`; `LessonCompleteToggle` wired to `setLessonProgress`; `/instructor*` gated in proxy; "Teach a course →" entry point. Lint/typecheck/build all clean; routes now include `/courses`, `/courses/[slug]`, `/instructor`, `/instructor/courses/new`, `/instructor/courses/[id]`. **Still roadmap:** 3D shelf-as-courses view and the **AI tutor** (deliberately not wired — needs the user's API key and crosses the v1 "no AI" line; specs in `docs/lms-salvage/`).
 
+### 2026-06-20 — Lesson video embeds
+Lessons can now carry a video, via embed (not upload). Chosen over direct upload/Mux to keep infra cost at zero — video files would blow past the Supabase/Stripe storage quotas and need transcoding.
+
+- **`addLessonSchema`** gains `videoUrl` (zod `.url()`, nullable); `addLesson` persists it to the existing `lessons.video_url` column (added back in `0004_courses.sql`, no new migration needed).
+- **`src/components/VideoEmbed.tsx`** — server component; normalizes YouTube (`watch`/`youtu.be`), Vimeo, and direct media files to a 16:9 player; falls back to an "Open video ↗" link for anything unrecognized (so we never embed a URL that X-Frame-Options would block).
+- **Authoring** — `CourseEditor`'s add-lesson form gains a "Video URL" field; the lesson list shows `Book + Video` content tags.
+- **Learner** — `/courses/[slug]` shows a `▸ Watch video` disclosure per lesson for enrolled users (gated like book content; non-enrolled see "Enroll to watch").
+- **Deferred:** lesson *editing* (lessons are still add-only), and true video *upload* (would need a `videos` bucket or Mux — see the video discussion). Lint/typecheck/build clean.
+
 ### 2026-05-06 — Stripe billing scaffold (Phase 10)
 First-pass billing: subscription tiers (Free 1 GB / Plus 10 GB / Pro 100 GB) wired through Stripe Checkout + Customer Portal. Code is fully plumbed; the user just drops their Stripe keys + Price IDs in env to turn it on.
 

@@ -163,7 +163,9 @@ export function CourseEditor({
                     {l.title}
                   </span>
                   <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--color-ink)]/40">
-                    {l.book_id ? "Book attached" : "No content"}
+                    {[l.book_id ? "Book" : null, l.video_url ? "Video" : null]
+                      .filter(Boolean)
+                      .join(" + ") || "No content"}
                   </span>
                   <button
                     type="button"
@@ -232,20 +234,29 @@ function AddLessonForm({
     moduleId: string;
     title: string;
     bookId: string | null;
+    videoUrl: string | null;
     content: string;
   }) => void;
 }) {
   const [title, setTitle] = useState("");
   const [bookId, setBookId] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         if (!title.trim()) return;
-        onAdd({ moduleId, title, bookId: bookId || null, content: "" });
+        onAdd({
+          moduleId,
+          title,
+          bookId: bookId || null,
+          videoUrl: videoUrl.trim() || null,
+          content: "",
+        });
         setTitle("");
         setBookId("");
+        setVideoUrl("");
       }}
       className="mt-4 flex flex-wrap items-center gap-2"
     >
@@ -268,6 +279,14 @@ function AddLessonForm({
           </option>
         ))}
       </select>
+      <input
+        type="url"
+        value={videoUrl}
+        onChange={(e) => setVideoUrl(e.target.value)}
+        maxLength={500}
+        placeholder="Video URL (YouTube/Vimeo, optional)"
+        className="min-w-[12rem] flex-1 rounded-md border border-[color:var(--color-ink)]/20 bg-[color:var(--color-ink)]/[0.03] px-3 py-2 text-sm outline-none placeholder:text-[color:var(--color-ink)]/25 focus:border-[color:var(--color-gold)]/60"
+      />
       <button
         type="submit"
         disabled={disabled || !title.trim()}

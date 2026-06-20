@@ -93,6 +93,7 @@ export const addLessonSchema = z.object({
   moduleId: z.string().uuid(),
   title: z.string().min(1).max(160),
   bookId: z.string().uuid().nullable().default(null),
+  videoUrl: z.string().url().max(500).nullable().default(null),
   content: z.string().max(5000).default(""),
 });
 
