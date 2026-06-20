@@ -68,6 +68,36 @@ export const lessonProgressSchema = z.object({
   completed: z.boolean(),
 });
 
+export const createCourseSchema = z.object({
+  title: z.string().min(2).max(160),
+  description: z.string().max(2000).default(""),
+});
+
+export const updateCourseSchema = z.object({
+  courseId: z.string().uuid(),
+  title: z.string().min(2).max(160),
+  description: z.string().max(2000),
+});
+
+export const publishCourseSchema = z.object({
+  courseId: z.string().uuid(),
+  isPublished: z.boolean(),
+});
+
+export const addModuleSchema = z.object({
+  courseId: z.string().uuid(),
+  title: z.string().min(1).max(160),
+});
+
+export const addLessonSchema = z.object({
+  moduleId: z.string().uuid(),
+  title: z.string().min(1).max(160),
+  bookId: z.string().uuid().nullable().default(null),
+  content: z.string().max(5000).default(""),
+});
+
+export const idSchema = z.object({ id: z.string().uuid() });
+
 /** Build a URL-safe slug from a free-text title. */
 export function slugify(input: string): string {
   return input

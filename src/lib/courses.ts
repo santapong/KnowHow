@@ -123,6 +123,52 @@ export async function getCourseBySlug(
   return { ...rest, instructor: instructor ?? null, modules: withLessons };
 }
 
+/** Same shape as getCourseBySlug, but keyed by id and only for the owner.
+ *  RLS already restricts unpublished courses to their instructor; we also
+ *  filter by instructor_id so a non-owner can't load the editor. */
+export async function getOwnCourseById(
+  courseId: string,
+  userId: string,
+): Promise<CourseDetail | null> {
+  const supabase = await createClient();
+  const { data: course } = await supabase
+    .from("courses")
+    .select(
+      "*, instructor:profiles!courses_instructor_id_fkey(id, handle, display_name, avatar_url)",
+    )
+    .eq("id", courseId)
+    .eq("instructor_id", userId)
+    .maybeSingle();
+  if (!course) return null;
+
+  const { data: modules } = await supabase
+    .from("modules")
+    .select("id, course_id, title, position")
+    .eq("course_id", course.id)
+    .order("position", { ascending: true });
+
+  const moduleIds = (modules ?? []).map((m) => m.id);
+  let lessons: LessonRow[] = [];
+  if (moduleIds.length) {
+    const { data: lessonRows } = await supabase
+      .from("lessons")
+      .select("*")
+      .in("module_id", moduleIds)
+      .order("position", { ascending: true });
+    lessons = (lessonRows ?? []) as LessonRow[];
+  }
+
+  const withLessons: ModuleWithLessons[] = (modules ?? []).map((m) => ({
+    ...m,
+    lessons: lessons.filter((l) => l.module_id === m.id),
+  }));
+
+  const { instructor, ...rest } = course as CourseRow & {
+    instructor: ProfileSummary | null;
+  };
+  return { ...rest, instructor: instructor ?? null, modules: withLessons };
+}
+
 export async function isEnrolled(
   userId: string,
   courseId: string,

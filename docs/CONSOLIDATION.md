@@ -79,15 +79,29 @@ and the tutor agent remain roadmap):
   enroll button, per-lesson "Read →" links into `/shelf/[bookId]`, progress %).
 - **`Nav`** — "Courses" link (signed-in and signed-out).
 
-**Still to build:** instructor authoring UI (create course / add modules+lessons /
-attach a book / publish), a lesson-complete control wired to `setLessonProgress`, the
-3D shelf-as-courses browse view, and the tutor agent. Plus the documented RLS
-limitation below.
+### Built: full authoring + enrolment-based access (second slice)
 
-**Known limitation:** a lesson's book must be `is_public = true` to be readable by
-enrolled learners, because the reader relies on the existing books/PDF RLS. Granting
-enrolled learners access to *private* lesson PDFs needs a follow-up migration that
-extends the books + storage policies to consult `enrollments`.
+The LMS is now end-to-end usable — create a course, fill it, publish it, enrol, read,
+track progress:
+
+- **`supabase/migrations/0005_course_content_access.sql`** — `book_unlocked_by_enrollment()`
+  helper + broadened `books` select and `pdfs` storage policies, so an enrolled learner
+  can read a lesson's book **even when it's private**. Removes the earlier
+  public-only limitation.
+- **Instructor authoring** — `/instructor` (your courses), `/instructor/courses/new`
+  (create), `/instructor/courses/[id]` (editor: edit details, publish/unpublish,
+  delete, add/remove modules, add/remove lessons with a book attached from your shelf).
+  Backed by `src/actions/courses.ts` (`createCourse`, `updateCourse`,
+  `setCoursePublished`, `deleteCourse`, `addModule`, `deleteModule`, `addLesson`,
+  `deleteLesson`) and `getOwnCourseById()`. `/instructor*` is gated in the proxy.
+- **Lesson-complete control** — `LessonCompleteToggle` on the course detail page wires
+  each lesson to `setLessonProgress`; the progress % updates from real completions.
+- **Entry points** — "Teach a course →" on `/courses`.
+
+**Still roadmap:** a 3D shelf-as-courses browse view, and the **AI tutor agent**.
+The tutor is deliberately *not* wired — a live LLM call needs the user's API key and
+crosses KnowHow's explicit "no AI in v1" line. The role specs in `docs/lms-salvage/`
+remain the blueprint for when AI is switched on.
 
 ## Status of the other repo
 

@@ -7,6 +7,7 @@ import {
   isEnrolled,
   getCompletedLessonIds,
 } from "@/lib/courses";
+import { LessonCompleteToggle } from "@/components/LessonCompleteToggle";
 import { getOptionalUser } from "@/lib/auth/getUser";
 import { supabaseConfigured } from "@/lib/env";
 
@@ -110,43 +111,45 @@ export default async function CoursePage({ params }: { params: Params }) {
                   {m.lessons.map((l) => {
                     const isDone = completed.has(l.id);
                     const readable = enrolled && l.book_id;
-                    const row = (
-                      <div className="flex items-center gap-3 py-3">
-                        <span
-                          aria-hidden
-                          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border text-[10px] ${
-                            isDone
-                              ? "border-[color:var(--color-gold)]/70 bg-[color:var(--color-gold)]/20 text-[color:var(--color-gold)]"
-                              : "border-[color:var(--color-ink)]/25 text-transparent"
-                          }`}
-                        >
-                          ✓
-                        </span>
-                        <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
-                          {l.title}
-                        </span>
-                        {l.book_id ? (
-                          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/40">
-                            {readable ? "Read →" : "Enroll to read"}
-                          </span>
+                    return (
+                      <li
+                        key={l.id}
+                        className="flex items-center gap-3 py-3"
+                      >
+                        {enrolled ? (
+                          <LessonCompleteToggle
+                            lessonId={l.id}
+                            initialDone={isDone}
+                          />
                         ) : (
-                          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/30">
-                            No content
+                          <span
+                            aria-hidden
+                            className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[color:var(--color-ink)]/25 text-[10px] text-transparent"
+                          >
+                            ✓
                           </span>
                         )}
-                      </div>
-                    );
-                    return (
-                      <li key={l.id}>
                         {readable ? (
                           <Link
                             href={`/shelf/${l.book_id}`}
-                            className="block transition hover:bg-[color:var(--color-ink)]/[0.04]"
+                            className="flex flex-1 items-center gap-3 transition hover:text-[color:var(--color-gold)]"
                           >
-                            {row}
+                            <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
+                              {l.title}
+                            </span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/40">
+                              Read →
+                            </span>
                           </Link>
                         ) : (
-                          row
+                          <>
+                            <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
+                              {l.title}
+                            </span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/30">
+                              {l.book_id ? "Enroll to read" : "No content"}
+                            </span>
+                          </>
                         )}
                       </li>
                     );

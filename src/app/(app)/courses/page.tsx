@@ -33,6 +33,12 @@ export default async function CoursesPage({
             Structured paths built on the same library. Each lesson opens a book
             in the reader — read, practice, and track your progress.
           </p>
+          <Link
+            href="/instructor"
+            className="mt-6 inline-block font-mono text-[11px] uppercase tracking-[0.18em] text-[color:var(--color-gold)]/80 hover:text-[color:var(--color-gold)]"
+          >
+            Teach a course →
+          </Link>
         </div>
       </main>
 
