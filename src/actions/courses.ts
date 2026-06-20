@@ -221,6 +221,7 @@ export async function addLesson(input: {
   moduleId: string;
   title: string;
   bookId?: string | null;
+  videoUrl?: string | null;
   content?: string;
 }): Promise<Result<{ lessonId: string }>> {
   const parsed = addLessonSchema.safeParse(input);
@@ -259,6 +260,7 @@ export async function addLesson(input: {
       title: parsed.data.title,
       position,
       book_id: parsed.data.bookId,
+      video_url: parsed.data.videoUrl,
       content: parsed.data.content ?? "",
     })
     .select("id")

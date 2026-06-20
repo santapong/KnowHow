@@ -8,6 +8,7 @@ import {
   getCompletedLessonIds,
 } from "@/lib/courses";
 import { LessonCompleteToggle } from "@/components/LessonCompleteToggle";
+import { VideoEmbed } from "@/components/VideoEmbed";
 import { getOptionalUser } from "@/lib/auth/getUser";
 import { supabaseConfigured } from "@/lib/env";
 
@@ -111,45 +112,60 @@ export default async function CoursePage({ params }: { params: Params }) {
                   {m.lessons.map((l) => {
                     const isDone = completed.has(l.id);
                     const readable = enrolled && l.book_id;
+                    const hasContent = l.book_id || l.video_url;
                     return (
-                      <li
-                        key={l.id}
-                        className="flex items-center gap-3 py-3"
-                      >
-                        {enrolled ? (
-                          <LessonCompleteToggle
-                            lessonId={l.id}
-                            initialDone={isDone}
-                          />
-                        ) : (
-                          <span
-                            aria-hidden
-                            className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[color:var(--color-ink)]/25 text-[10px] text-transparent"
-                          >
-                            ✓
-                          </span>
-                        )}
-                        {readable ? (
-                          <Link
-                            href={`/shelf/${l.book_id}`}
-                            className="flex flex-1 items-center gap-3 transition hover:text-[color:var(--color-gold)]"
-                          >
-                            <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
-                              {l.title}
+                      <li key={l.id} className="py-3">
+                        <div className="flex items-center gap-3">
+                          {enrolled ? (
+                            <LessonCompleteToggle
+                              lessonId={l.id}
+                              initialDone={isDone}
+                            />
+                          ) : (
+                            <span
+                              aria-hidden
+                              className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-[color:var(--color-ink)]/25 text-[10px] text-transparent"
+                            >
+                              ✓
                             </span>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/40">
-                              Read →
-                            </span>
-                          </Link>
-                        ) : (
-                          <>
-                            <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
-                              {l.title}
-                            </span>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/30">
-                              {l.book_id ? "Enroll to read" : "No content"}
-                            </span>
-                          </>
+                          )}
+                          {readable ? (
+                            <Link
+                              href={`/shelf/${l.book_id}`}
+                              className="flex flex-1 items-center gap-3 transition hover:text-[color:var(--color-gold)]"
+                            >
+                              <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
+                                {l.title}
+                              </span>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/40">
+                                Read →
+                              </span>
+                            </Link>
+                          ) : (
+                            <>
+                              <span className="flex-1 text-[15px] text-[color:var(--color-ink)]/80">
+                                {l.title}
+                              </span>
+                              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-ink)]/30">
+                                {!hasContent
+                                  ? "No content"
+                                  : l.book_id
+                                    ? "Enroll to read"
+                                    : "Enroll to watch"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {enrolled && l.video_url && (
+                          <details className="mt-2 pl-8">
+                            <summary className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.16em] text-[color:var(--color-gold)]/80 hover:text-[color:var(--color-gold)]">
+                              ▸ Watch video
+                            </summary>
+                            <div className="mt-3 max-w-xl">
+                              <VideoEmbed url={l.video_url} />
+                            </div>
+                          </details>
                         )}
                       </li>
                     );
