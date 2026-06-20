@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type NavProps = {
   /** Active route key — adds an accent underline to the matching link. */
-  active?: "shelf" | "upload" | "community" | "settings";
+  active?: "shelf" | "upload" | "courses" | "community" | "settings";
 };
 
 export async function Nav({ active }: NavProps = {}) {
@@ -46,6 +46,9 @@ export async function Nav({ active }: NavProps = {}) {
               <NavLink href="/upload" active={active === "upload"}>
                 Upload
               </NavLink>
+              <NavLink href="/courses" active={active === "courses"}>
+                Courses
+              </NavLink>
               <NavLink href="/community" active={active === "community"}>
                 Community
               </NavLink>
@@ -82,6 +85,9 @@ export async function Nav({ active }: NavProps = {}) {
             </>
           ) : (
             <>
+              <NavLink href="/courses" active={active === "courses"}>
+                Courses
+              </NavLink>
               <NavLink href="/community" active={active === "community"}>
                 Community
               </NavLink>

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env, supabaseConfigured } from "@/lib/env";
 
-const PROTECTED_PREFIXES = ["/shelf", "/upload", "/settings"];
+const PROTECTED_PREFIXES = ["/shelf", "/upload", "/settings", "/instructor"];
 
 function isProtectedPath(path: string) {
   return PROTECTED_PREFIXES.some((p) => path.startsWith(p));

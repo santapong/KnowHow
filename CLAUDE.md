@@ -173,6 +173,16 @@ If you make changes that affect either skill (new failure mode discovered, smoke
 
 Reverse-chronological. Entries log architecture decisions, phase completions, and explicit deferrals. Routine commits and bug fixes go to git history, not here.
 
+### 2026-06-11 — Consolidation: KnowHow chosen as the main repo over the Learning Platform
+The user had a second repo, `santapong/Leaning-Platfrom` (a Next.js + Prisma + Auth.js **LMS**: instructors publish structured courses, learners enroll & track progress), and asked whether the two could be merged onto one main repo. They overlap only in theme ("a Next.js knowledge-content platform with AI deferred"), not in product shape — KnowHow is a reader, the other is a course platform.
+
+- **Decided:** KnowHow is the **main repo**; the Learning Platform is **frozen** for active dev. KnowHow has the mature infra (Supabase auth/storage/RLS, Stripe billing, design system, 3D, pdfjs) that the LMS scaffold would otherwise rebuild from scratch. The valuable *code* is here; the valuable *vision* (courses + AI tutor) is salvaged from there.
+- **Salvaged into `docs/lms-salvage/`:** the 5 AI agent specs (PM, curriculum-designer, tutor, content-reviewer, upload-coordinator) and the LMS course data model (`lms-data-model.prisma`). These reframe the vague "RAG chat" v2 line into a concrete AI direction.
+- **Reframe (roadmap only, not built):** KnowHow grows from "3D novel reader" into a **learning library** — PDF reader becomes the lesson viewer, add course→module→lesson structure as a Supabase migration (port the salvaged model; keep Supabase, drop Prisma/Auth.js), wire the tutor agent on top. v1 functionality unchanged.
+- **Full write-up:** [`docs/CONSOLIDATION.md`](./docs/CONSOLIDATION.md). The other repo's README now carries a freeze notice pointing here.
+- **Built (first slice):** migration `0004_courses.sql` (`courses`/`modules`/`lessons`/`enrollments`/`lesson_progress`, RLS, with `lessons.book_id → books` so the reader is the lesson viewer); `src/lib/courses.ts` accessors; `src/actions/enroll.ts` (`enrollInCourse` + `setLessonProgress`); `/courses` catalog + `/courses/[slug]` detail; Nav "Courses" link.
+- **Built (second slice — full LMS):** migration `0005_course_content_access.sql` (`book_unlocked_by_enrollment()` + broadened `books`/`pdfs` RLS so enrolled learners read *private* lesson books — removes the public-only limitation); instructor authoring (`/instructor`, `/instructor/courses/new`, `/instructor/courses/[id]` editor) via `src/actions/courses.ts` + `getOwnCourseById()`; `LessonCompleteToggle` wired to `setLessonProgress`; `/instructor*` gated in proxy; "Teach a course →" entry point. Lint/typecheck/build all clean; routes now include `/courses`, `/courses/[slug]`, `/instructor`, `/instructor/courses/new`, `/instructor/courses/[id]`. **Still roadmap:** 3D shelf-as-courses view and the **AI tutor** (deliberately not wired — needs the user's API key and crosses the v1 "no AI" line; specs in `docs/lms-salvage/`).
+
 ### 2026-05-06 — Stripe billing scaffold (Phase 10)
 First-pass billing: subscription tiers (Free 1 GB / Plus 10 GB / Pro 100 GB) wired through Stripe Checkout + Customer Portal. Code is fully plumbed; the user just drops their Stripe keys + Price IDs in env to turn it on.
 

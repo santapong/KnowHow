@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  LEARNER
+  INSTRUCTOR
+  ADMIN
+}
+
+enum AssetType {
+  IMAGE
+  VIDEO
+  DIAGRAM
+}
+
+enum ExerciseType {
+  MCQ
+  FREE
+}
+
+model User {
+  id            String       @id @default(cuid())
+  email         String       @unique
+  name          String?
+  passwordHash  String
+  role          Role         @default(LEARNER)
+  createdAt     DateTime     @default(now())
+
+  courses       Course[]     @relation("InstructorCourses")
+  enrollments   Enrollment[]
+  progress      Progress[]
+}
+
+model Course {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  description  String
+  coverImage   String?
+  published    Boolean  @default(false)
+  instructorId String
+  instructor   User     @relation("InstructorCourses", fields: [instructorId], references: [id], onDelete: Cascade)
+  modules      Module[]
+  enrollments  Enrollment[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([instructorId])
+}
+
+model Module {
+  id        String   @id @default(cuid())
+  courseId  String
+  title     String
+  order     Int
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+
+  @@unique([courseId, order])
+  @@index([courseId])
+}
+
+model Lesson {
+  id            String     @id @default(cuid())
+  moduleId      String
+  title         String
+  order         Int
+  content       String     @default("")
+  videoUrl      String?
+  diagramSource String?
+  module        Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  assets        Asset[]
+  exercises     Exercise[]
+  progress      Progress[]
+
+  @@unique([moduleId, order])
+  @@index([moduleId])
+}
+
+model Asset {
+  id        String    @id @default(cuid())
+  lessonId  String
+  type      AssetType
+  url       String
+  caption   String?
+  lesson    Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+}
+
+model Exercise {
+  id          String       @id @default(cuid())
+  lessonId    String
+  type        ExerciseType
+  question    String
+  options     String[]     @default([])
+  answer      String
+  explanation String?
+  lesson      Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+}
+
+model Progress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+}
